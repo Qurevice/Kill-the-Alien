@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>НЛО-шутер — настройки, адаптация под поворот</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #0a0f1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        .game-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        canvas {
+            display: block;
+            background: #0b1219;
+            cursor: crosshair;
+        }
+        /* Счётчик слева сверху */
+        .score {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 26px;
+            font-weight: bold;
+            color: #ffd966;
+            font-family: monospace;
+            pointer-events: none;
+            z-index: 10;
+            letter-spacing: 2px;
+        }
+        .score span {
+            font-size: 28px;
+            margin-right: 8px;
+        }
+        #scoreValue {
+            color: #ffd966;
+            transition: color 0.1s ease;
+        }
+        /* Кнопка Новая игра (снизу слева или справа в зависимости от ориентации) */
+        .reset-btn {
+            position: absolute;
+            background: #5a5a5a;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 6px 20px;
+            border-radius: 40px;
+            color: #f0f0f0;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 3px 0 #2c2c2c;
+            transition: 0.07s linear;
+            z-index: 15;
+        }
+        .reset-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #2c2c2c;
+        }
+        /* Иконка настроек (три полоски) справа сверху */
+        .settings-icon {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            border-radius: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: 0.1s;
+        }
+        .settings-icon div {
+            width: 22px;
+            height: 2px;
+            background: #ddd;
+            margin: 3px 0;
+            border-radius: 2px;
+        }
+        .settings-icon:active {
+            background: rgba(0,0,0,0.8);
+        }
+        /* Выпадающее меню настроек */
+        .settings-menu {
+            position: absolute;
+            top: 60px;
+            right: 16px;
+            background: rgba(30,30,40,0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 25;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.1s;
+            border: 1px solid #888;
+        }
+        .settings-menu.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .settings-menu button {
+            background: transparent;
+            border: none;
+            color: #ffd966;
+            font-size: 20px;
+            font-family: monospace;
+            padding: 8px 20px;
+            text-align: left;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.05s;
+        }
+        .settings-menu button:active {
+            background: #5a5a5a;
+        }
+        /* Оверлей финального счёта (просто число) */
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .final-score-box {
+            background: rgba(0,0,0,0.7);
+            border-radius: 80px;
+            padding: 30px 60px;
+            text-align: center;
+            backdrop-filter: none;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .final-score-number {
+            font-size: 100px;
+            font-weight: bold;
+            color: #ffd966;
+            font-family: monospace;
+            letter-spacing: 5px;
+            text-shadow: 0 0 20px #ffaa33;
+        }
+        .game-over {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+        .game-over.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+    <div class="score"><span>👽</span> <span id="scoreValue">0</span></div>
+    <button id="resetBtn" class="reset-btn">НОВАЯ ИГРА</button>
+    <div id="settingsIcon" class="settings-icon">
+        <div></div><div></div><div></div>
+    </div>
+    <div id="settingsMenu" class="settings-menu">
+        <button data-enemies="10">🔫 10 врагов</button>
+        <button data-enemies="15">🔫 15 врагов</button>
+        <button data-enemies="20">🔫 20 врагов</button>
+    </div>
+    <div id="gameOverlay" class="game-over">
+        <div class="final-score-box">
+            <div class="final-score-number" id="finalScoreNumber">0</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
+        let canvas, ctx;
+        let PLAYER_X, PLAYER_Y;
+        let PLAYER_RADIUS = 24;
+        let FOLLOW_RADIUS = 200;
+        let ENEMY_RADIUS = 21;
+        let ENEMY_SPEED = 1.15;
+        let ENEMY_COUNT = 10;        // по умолчанию 10
+        let ENEMY_MIN_X, ENEMY_MAX_X, ENEMY_MIN_Y, ENEMY_MAX_Y;
+        
+        let playerSpinAngle = 0;
+        const PLAYER_SPIN_SPEED = 0.008;
+        let playerFlash = 0;
+        
+        let shells = [];
+        const SHELL_RADIUS = 6;
+        const SHELL_SPEED = 8.2;
+        
+        let enemies = [];
+        let particles = [];
+        let shrapnel = [];
+        let score = 0;
+        let gameActive = true;
+        let winFlag = false;
+        let turretAngle = 0;
+        
+        let comets = [];
+        let cometSpawnTimer = 0;
+        const COMET_SPAWN_DELAY = 180;
+        
+        let stars = [];
+        
+        let currentOrientation = 'landscape';
+        
+        const scoreSpan = document.getElementById('scoreValue');
+        const resetBtn = document.getElementById('resetBtn');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const finalScoreNumberSpan = document.getElementById('finalScoreNumber');
+        const settingsIcon = document.getElementById('settingsIcon');
+        const settingsMenu = document.getElementById('settingsMenu');
+        
+        // ----- Функция обновления счёта (цвет) -----
+        function updateScoreUI() {
+            scoreSpan.innerText = score;
+            if (score < 0) {
+                scoreSpan.style.color = '#ff6666';
+            } else {
+                scoreSpan.style.color = '#ffd966';
+            }
+        }
+        
+        // ----- Показ / скрытие экрана окончания -----
+        function showGameOver() {
+            if (!gameActive && winFlag) {
+                finalScoreNumberSpan.innerText = score;
+                gameOverlay.classList.add('show');
+            } else {
+                gameOverlay.classList.remove('show');
+            }
+        }
+        
+        // ----- Перезапуск игры с новым количеством врагов -----
+        function restartWithEnemyCount(newCount) {
+            ENEMY_COUNT = newCount;
+            resetGame();
+        }
+        
+        // ----- Инициализация врагов (с учётом текущего ENEMY_COUNT) -----
+        function initEnemies() {
+            const newEnemies = [];
+            for(let i = 0; i < ENEMY_COUNT; i++) {
+                let overlap = true;
+                let tries = 0;
+                let posX, posY;
+                while(overlap && tries < 400) {
+                    posX = ENEMY_MIN_X + Math.random() * (ENEMY_MAX_X - ENEMY_MIN_X);
+                    posY = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
+                    overlap = false;
+                    for(let e of newEnemies) {
+                        const dx = e.x - posX;
+                        const dy = e.y - posY;
+                        if(Math.hypot(dx, dy) < ENEMY_RADIUS * 2) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                    tries++;
+                }
+                let vx = (Math.random() - 0.5) * ENEMY_SPEED * 1.6;
+                let vy = (Math.random() - 0.5) * ENEMY_SPEED * 1.6;
+                const len = Math.hypot(vx, vy);
+                if(len > 0.01) {
+                    vx = (vx / len) * ENEMY_SPEED;
+                    vy = (vy / len) * ENEMY_SPEED;
+                } else {
+                    vx = ENEMY_SPEED * (Math.random() > 0.5 ? 1 : -1);
+                    vy = ENEMY_SPEED * (Math.random() > 0.5 ? 1 : -1);
+                }
+                const spinSpeed = 0.02 + Math.random() * 0.015;
+                newEnemies.push({ x: posX, y: posY, r: ENEMY_RADIUS, vx: vx, vy: vy, spinAngle: Math.random() * Math.PI * 2, spinSpeed: spinSpeed });
+            }
+            return newEnemies;
+        }
+        
+        function generateStars() {
+            stars = [];
+            for(let i = 0; i < 500; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 2 + 0.5,
+                    alpha: Math.random() * 0.7 + 0.3
+                });
+            }
+        }
+        
+        function resetGame() {
+            enemies = initEnemies();
+            shells = [];
+            particles = [];
+            shrapnel = [];
+            score = 0;
+            updateScoreUI();
+            gameActive = true;
+            winFlag = false;
+            generateStars();
+            playerSpinAngle = 0;
+            turretAngle = currentOrientation === 'landscape' ? 0.2 : -Math.PI/2;
+            comets = [];
+            cometSpawnTimer = 30;
+            playerFlash = 0;
+            showGameOver();
+        }
+        
+        function setOrientation(orientation) {
+            currentOrientation = orientation;
+            if (orientation === 'landscape') {
+                canvas.width = 900;
+                canvas.height = 600;
+                PLAYER_X = 110;
+                PLAYER_Y = canvas.height / 2;
+                ENEMY_MIN_X = 520;
+                ENEMY_MAX_X = canvas.width - ENEMY_RADIUS*2 - 15;
+                ENEMY_MIN_Y = 40;
+                ENEMY_MAX_Y = canvas.height - ENEMY_RADIUS*2 - 15;
+                resetBtn.style.bottom = '16px';
+                resetBtn.style.left = '16px';
+                resetBtn.style.right = 'auto';
+                resetBtn.style.top = 'auto';
+                // иконка настроек остаётся справа сверху (по умолчанию top/right)
+                settingsIcon.style.top = '16px';
+                settingsIcon.style.right = '16px';
+                settingsIcon.style.left = 'auto';
+                settingsIcon.style.bottom = 'auto';
+                // меню настроек привязываем к иконке
+                settingsMenu.style.top = '60px';
+                settingsMenu.style.right = '16px';
+                settingsMenu.style.left = 'auto';
+                settingsMenu.style.bottom = 'auto';
+            } else {
+                canvas.width = 600;
+                canvas.height = 900;
+                PLAYER_X = canvas.width / 2;
+                PLAYER_Y = canvas.height - 80;
+                ENEMY_MIN_X = 40;
+                ENEMY_MAX_X = canvas.width - ENEMY_RADIUS*2 - 15;
+                ENEMY_MIN_Y = 40;
+                ENEMY_MAX_Y = canvas.height / 2 - 50;
+                resetBtn.style.bottom = '16px';
+                resetBtn.style.right = '16px';
+                resetBtn.style.left = 'auto';
+                resetBtn.style.top = 'auto';
+                // иконка также справа сверху (в портрете тоже сверху справа)
+                settingsIcon.style.top = '16px';
+                settingsIcon.style.right = '16px';
+                settingsIcon.style.left = 'auto';
+                settingsIcon.style.bottom = 'auto';
+                settingsMenu.style.top = '60px';
+                settingsMenu.style.right = '16px';
+                settingsMenu.style.left = 'auto';
+                settingsMenu.style.bottom = 'auto';
+            }
+            enemies = initEnemies();
+            shells = [];
+            particles = [];
+            shrapnel = [];
+            gameActive = true;
+            winFlag = false;
+            playerFlash = 0;
+            comets = [];
+            cometSpawnTimer = 30;
+            playerSpinAngle = 0;
+            turretAngle = orientation === 'landscape' ? 0.2 : -Math.PI/2;
+            updateScoreUI();
+            generateStars();
+            showGameOver();
+        }
+        
+        function checkWin() {
+            if(enemies.length === 0 && !winFlag && gameActive) {
+                winFlag = true;
+                gameActive = false;
+                showGameOver();
+                return true;
+            }
+            return false;
+        }
+        
+        function shoot() {
+            if(!gameActive) return;
+            const vx = Math.cos(turretAngle) * SHELL_SPEED;
+            const vy = Math.sin(turretAngle) * SHELL_SPEED;
+            shells.push({
+                x: PLAYER_X,
+                y: PLAYER_Y,
+                vx: vx,
+                vy: vy,
+                radius: SHELL_RADIUS
+            });
+            playerFlash = 5;
+        }
+        
+        // ----- ОСТАЛЬНЫЕ МЕХАНИКИ (взрывы, частицы, кометы) без изменений -----
+        function createExplosion(x, y) {
+            const particleCount = 18 + Math.floor(Math.random() * 12);
+            for(let i = 0; i < particleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                particles.push({
+                    x: x, y: y,
+                    vx: vx, vy: vy,
+                    life: 30 + Math.random() * 20,
+                    size: 2 + Math.random() * 4,
+                    color: `hsl(${30 + Math.random() * 20}, 80%, 55%)`
+                });
+            }
+            for(let i = 0; i < 12; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 6;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                particles.push({
+                    x: x, y: y,
+                    vx: vx, vy: vy,
+                    life: 15 + Math.random() * 15,
+                    size: 1 + Math.random() * 2,
+                    color: `hsl(50, 90%, 65%)`
+                });
+            }
+            if(Math.random() < 0.5) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 4 + Math.random() * 5;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                shrapnel.push({
+                    x: x, y: y,
+                    vx: vx, vy: vy,
+                    life: 60,
+                    radius: 6
+                });
+            }
+        }
+        
+        function destroyEnemy(index, addScore = true) {
+            const enemy = enemies[index];
+            if(!enemy) return false;
+            createExplosion(enemy.x, enemy.y);
+            enemies.splice(index, 1);
+            if(addScore) {
+                score += 1;
+                updateScoreUI();
+            }
+            checkWin();
+            return true;
+        }
+        
+        function updateShells() {
+            for(let i = shells.length-1; i >= 0; i--) {
+                const s = shells[i];
+                s.x += s.vx;
+                s.y += s.vy;
+                if(s.x + SHELL_RADIUS < 0 || s.x - SHELL_RADIUS > canvas.width ||
+                   s.y + SHELL_RADIUS < 0 || s.y - SHELL_RADIUS > canvas.height) {
+                    shells.splice(i,1);
+                    if(gameActive) {
+                        score -= 1;
+                        updateScoreUI();
+                    }
+                    continue;
+                }
+                let hitIndex = -1;
+                for(let j = 0; j < enemies.length; j++) {
+                    const e = enemies[j];
+                    const dx = s.x - e.x;
+                    const dy = s.y - e.y;
+                    if(Math.hypot(dx, dy) < e.r + SHELL_RADIUS) {
+                        hitIndex = j;
+                        break;
+                    }
+                }
+                if(hitIndex !== -1) {
+                    destroyEnemy(hitIndex, true);
+                    shells.splice(i,1);
+                }
+            }
+        }
+        
+        function updateShrapnel() {
+            for(let i = 0; i < shrapnel.length; i++) {
+                const sh = shrapnel[i];
+                sh.x += sh.vx;
+                sh.y += sh.vy;
+                sh.life--;
+                if(sh.life <= 0 || sh.x < -50 || sh.x > canvas.width+50 || sh.y < -50 || sh.y > canvas.height+50) {
+                    shrapnel.splice(i,1);
+                    i--;
+                    continue;
+                }
+                for(let j = 0; j < enemies.length; j++) {
+                    const e = enemies[j];
+                    const dx = sh.x - e.x;
+                    const dy = sh.y - e.y;
+                    if(Math.hypot(dx, dy) < e.r + sh.radius) {
+                        destroyEnemy(j, true);
+                        shrapnel.splice(i,1);
+                        i--;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function updateParticles() {
+            for(let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if(p.life <= 0) {
+                    particles.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        function moveEnemies() {
+            for(let e of enemies) {
+                e.spinAngle += e.spinSpeed;
+                e.x += e.vx;
+                e.y += e.vy;
+                if(e.x - e.r < ENEMY_MIN_X) { e.x = ENEMY_MIN_X + e.r; e.vx = -e.vx; }
+                if(e.x + e.r > ENEMY_MAX_X + ENEMY_RADIUS*2) { e.x = ENEMY_MAX_X + ENEMY_RADIUS*2 - e.r; e.vx = -e.vx; }
+                if(e.y - e.r < ENEMY_MIN_Y) { e.y = ENEMY_MIN_Y + e.r; e.vy = -e.vy; }
+                if(e.y + e.r > ENEMY_MAX_Y + ENEMY_RADIUS*2) { e.y = ENEMY_MAX_Y + ENEMY_RADIUS*2 - e.r; e.vy = -e.vy; }
+            }
+            for(let i = 0; i < enemies.length; i++) {
+                for(let j = i+1; j < enemies.length; j++) {
+                    const a = enemies[i];
+                    const b = enemies[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = a.r + b.r;
+                    if(dist < minDist) {
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDist - dist;
+                        const moveX = Math.cos(angle) * overlap * 0.5;
+                        const moveY = Math.sin(angle) * overlap * 0.5;
+                        a.x += moveX;
+                        a.y += moveY;
+                        b.x -= moveX;
+                        b.y -= moveY;
+                        const vRelX = a.vx - b.vx;
+                        const vRelY = a.vy - b.vy;
+                        const dot = vRelX * Math.cos(angle) + vRelY * Math.sin(angle);
+                        if(dot < 0) {
+                            const impulse = 0.8;
+                            a.vx -= impulse * Math.cos(angle) * dot;
+                            a.vy -= impulse * Math.sin(angle) * dot;
+                            b.vx += impulse * Math.cos(angle) * dot;
+                            b.vy += impulse * Math.sin(angle) * dot;
+                        }
+                        a.x = Math.min(Math.max(a.x, ENEMY_MIN_X + a.r), ENEMY_MAX_X + ENEMY_RADIUS*2 - a.r);
+                        a.y = Math.min(Math.max(a.y, ENEMY_MIN_Y + a.r), ENEMY_MAX_Y + ENEMY_RADIUS*2 - a.r);
+                        b.x = Math.min(Math.max(b.x, ENEMY_MIN_X + b.r), ENEMY_MAX_X + ENEMY_RADIUS*2 - b.r);
+                        b.y = Math.min(Math.max(b.y, ENEMY_MIN_Y + b.r), ENEMY_MAX_Y + ENEMY_RADIUS*2 - b.r);
+                    }
+                }
+            }
+        }
+        
+        // ----- КОМЕТЫ -----
+        function spawnComet() {
+            const side = Math.floor(Math.random() * 4);
+            let x, y, vx, vy;
+            let speed = 2 + Math.random() * 2;
+            const isFast = Math.random() < 0.20;
+            if(isFast) speed *= 3;
+            if(side === 0) { x = -10; y = Math.random() * canvas.height; vx = speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
+            else if(side === 1) { x = canvas.width + 10; y = Math.random() * canvas.height; vx = -speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
+            else if(side === 2) { x = Math.random() * canvas.width; y = -10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = speed; }
+            else { x = Math.random() * canvas.width; y = canvas.height + 10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = -speed; }
+            comets.push({ 
+                x: x, y: y, vx: vx, vy: vy, trail: [],
+                isFast: isFast,
+                size: isFast ? 3.5 : 2.5,
+                glow: isFast ? "#ffaa66" : "#ffe0a0"
+            });
+        }
+        
+        function updateComets() {
+            if(cometSpawnTimer <= 0) {
+                spawnComet();
+                cometSpawnTimer = COMET_SPAWN_DELAY + Math.random() * 120;
+            } else {
+                cometSpawnTimer--;
+            }
+            for(let i = 0; i < comets.length; i++) {
+                const c = comets[i];
+                c.trail.unshift({x: c.x, y: c.y});
+                if(c.trail.length > 10) c.trail.pop();
+                c.x += c.vx;
+                c.y += c.vy;
+                if(c.x < -150 || c.x > canvas.width + 150 || c.y < -150 || c.y > canvas.height + 150) {
+                    comets.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        function drawComets() {
+            for(let c of comets) {
+                for(let j = 0; j < c.trail.length; j++) {
+                    const t = c.trail[j];
+                    const alpha = 0.7 * (1 - j / c.trail.length);
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, c.size * 0.6, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(255, 220, 150, ${alpha})`;
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size, 0, Math.PI*2);
+                ctx.fillStyle = c.glow;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size * 0.5, 0, Math.PI*2);
+                ctx.fillStyle = "#ffffff";
+                ctx.fill();
+                if(c.isFast) {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.size * 1.2, 0, Math.PI*2);
+                    ctx.fillStyle = "rgba(255, 180, 80, 0.4)";
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function updateAimFromPointer(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (event.touches) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            let mouseX = (clientX - rect.left) * scaleX;
+            let mouseY = (clientY - rect.top) * scaleY;
+            mouseX = Math.min(Math.max(mouseX, 0), canvas.width);
+            mouseY = Math.min(Math.max(mouseY, 0), canvas.height);
+            const dx = mouseX - PLAYER_X;
+            const dy = mouseY - PLAYER_Y;
+            if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) {
+                turretAngle = Math.atan2(dy, dx);
+            }
+        }
+        
+        // ----- ОТРИСОВКА (игрок, враги и т.д.) -----
+        function drawStars() {
+            for(let s of stars) {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(255, 240, 200, ${s.alpha})`;
+                ctx.fill();
+            }
+        }
+        
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, "#0a1018");
+            grad.addColorStop(1, "#050a10");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawStars();
+            drawComets();
+        }
+        
+        function drawAimZone() {
+            ctx.save();
+            ctx.globalAlpha = 0.15;
+            ctx.beginPath();
+            ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2);
+            ctx.fillStyle = "#88ddff";
+            ctx.fill();
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS-2, 0, Math.PI*2);
+            ctx.strokeStyle = "#66ccff";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+            ctx.setLineDash([6, 10]);
+            ctx.beginPath();
+            ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2);
+            ctx.strokeStyle = "#aaffdd";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(PLAYER_X, PLAYER_Y);
+            ctx.rotate(playerSpinAngle);
+            if (playerFlash > 0) {
+                const intensity = playerFlash / 5;
+                const radius = PLAYER_RADIUS + 8;
+                const grad = ctx.createRadialGradient(0, 0, PLAYER_RADIUS-2, 0, 0, radius);
+                grad.addColorStop(0, `rgba(255, 220, 100, ${0.8 * intensity})`);
+                grad.addColorStop(0.5, `rgba(255, 180, 60, ${0.4 * intensity})`);
+                grad.addColorStop(1, `rgba(255, 100, 20, 0)`);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI*2);
+                ctx.fill();
+                playerFlash--;
+            }
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#c0c0c0";
+            const grad = ctx.createRadialGradient(-6, -6, 5, 0, 0, PLAYER_RADIUS);
+            grad.addColorStop(0, "#f8f8fc");
+            grad.addColorStop(0.5, "#b0b8c0");
+            grad.addColorStop(1, "#708090");
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, PLAYER_RADIUS, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, PLAYER_RADIUS-4, 0, Math.PI*2);
+            ctx.fillStyle = "#d0d8e0";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, PLAYER_RADIUS-8, 0, Math.PI*2);
+            ctx.fillStyle = "#8898a0";
+            ctx.fill();
+            for(let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const x = Math.cos(angle) * (PLAYER_RADIUS - 3);
+                const y = Math.sin(angle) * (PLAYER_RADIUS - 3);
+                ctx.beginPath();
+                ctx.arc(x, y, 1.2, 0, Math.PI*2);
+                ctx.fillStyle = "#505860";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, y, 0.6, 0, Math.PI*2);
+                ctx.fillStyle = "#e0e8f0";
+                ctx.fill();
+            }
+            ctx.beginPath();
+            ctx.arc(0, 0, 13, 0, Math.PI*2);
+            ctx.fillStyle = "#7ec8e3";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, 11, 0, Math.PI*2);
+            ctx.fillStyle = "#9bdaf5";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, 9, 0, Math.PI*2);
+            ctx.fillStyle = "#b0e4ff";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-4, -4, 4, 2.5, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffffcc";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-6, -6, 2, 1.5, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(0, -13);
+            ctx.lineTo(-3, -19);
+            ctx.lineTo(3, -19);
+            ctx.fillStyle = "#c0c8d0";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, -19, 2, 0, Math.PI*2);
+            ctx.fillStyle = "#ffaa66";
+            ctx.fill();
+            for(let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const x = Math.cos(angle) * (PLAYER_RADIUS - 2);
+                const y = Math.sin(angle) * (PLAYER_RADIUS - 2);
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = `hsl(${200 + i*5}, 100%, 65%)`;
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, Math.PI*2);
+                ctx.fillStyle = `hsl(${200 + i*5}, 80%, 65%)`;
+                ctx.fill();
+                ctx.shadowBlur = 1;
+                ctx.beginPath();
+                ctx.arc(x, y, 0.8, 0, Math.PI*2);
+                ctx.fillStyle = `hsl(${200 + i*5}, 100%, 80%)`;
+                ctx.fill();
+            }
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#c0c0c0";
+            ctx.restore();
+            ctx.beginPath();
+            ctx.moveTo(PLAYER_X, PLAYER_Y);
+            const dirX = Math.cos(turretAngle) * (PLAYER_RADIUS + 14);
+            const dirY = Math.sin(turretAngle) * (PLAYER_RADIUS + 14);
+            ctx.lineTo(PLAYER_X + dirX, PLAYER_Y + dirY);
+            ctx.strokeStyle = "#88ff88";
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+        }
+        
+        function drawEnemy(e) {
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            ctx.rotate(e.spinAngle);
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = "#88ff88";
+            const grad = ctx.createRadialGradient(-4, -4, 4, 0, 0, e.r);
+            grad.addColorStop(0, "#88cc66");
+            grad.addColorStop(1, "#448833");
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, e.r, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, e.r-4, 0, Math.PI*2);
+            ctx.fillStyle = "#66aa55";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, 11, 0, Math.PI*2);
+            ctx.strokeStyle = "#888888";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI*2);
+            ctx.fillStyle = "#6ab8d0";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI*2);
+            ctx.fillStyle = "#8acce8";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-3, -3, 3, 2, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffffcc";
+            ctx.fill();
+            for(let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const x = Math.cos(angle) * (e.r - 2);
+                const y = Math.sin(angle) * (e.r - 2);
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = "#88ff44";
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI*2);
+                ctx.fillStyle = "#88ff44";
+                ctx.fill();
+                ctx.shadowBlur = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 1.2, 0, Math.PI*2);
+                ctx.fillStyle = "#ccffaa";
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.r);
+            ctx.lineTo(-5, -e.r - 6);
+            ctx.lineTo(5, -e.r - 6);
+            ctx.fillStyle = "#aa8844";
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        function drawParticles() {
+            for(let p of particles) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            }
+        }
+        
+        function drawShrapnel() {
+            for(let sh of shrapnel) {
+                ctx.beginPath();
+                ctx.arc(sh.x, sh.y, sh.radius-2, 0, Math.PI*2);
+                ctx.fillStyle = "#cc8844";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sh.x, sh.y, sh.radius-4, 0, Math.PI*2);
+                ctx.fillStyle = "#ffaa66";
+                ctx.fill();
+            }
+        }
+        
+        function drawShells() {
+            for(let s of shells) {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, SHELL_RADIUS-1, 0, Math.PI*2);
+                ctx.fillStyle = "#88ff44";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, SHELL_RADIUS-2, 0, Math.PI*2);
+                ctx.fillStyle = "#44cc22";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, SHELL_RADIUS-3, 0, Math.PI*2);
+                ctx.fillStyle = "#aaff88";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s.x - s.vx*1.5, s.y - s.vy*1.5, SHELL_RADIUS-3, 0, Math.PI*2);
+                ctx.fillStyle = "#aaff8844";
+                ctx.fill();
+            }
+        }
+        
+        function draw() {
+            drawBackground();
+            drawAimZone();
+            for(let e of enemies) drawEnemy(e);
+            drawParticles();
+            drawShrapnel();
+            drawPlayer();
+            drawShells();
+        }
+        
+        function gameLoop() {
+            if(gameActive) {
+                playerSpinAngle += PLAYER_SPIN_SPEED;
+                moveEnemies();
+                updateShells();
+                updateShrapnel();
+                updateParticles();
+                updateComets();
+                checkWin();
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function handleResize() {
+            const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+            if (newOrientation !== currentOrientation) {
+                setOrientation(newOrientation);
+                resetGame();
+            }
+        }
+        
+        // ----- ИНИЦИАЛИЗАЦИЯ -----
+        function init() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            const initialOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+            setOrientation(initialOrientation);
+            resetGame();
+            
+            // Управление
+            canvas.addEventListener('mousemove', (e) => updateAimFromPointer(e));
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                updateAimFromPointer(e);
+            });
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                shoot();
+            });
+            canvas.addEventListener('click', (e) => {
+                shoot();
+            });
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+            // Кнопка новой игры
+            resetBtn.addEventListener('click', () => {
+                resetGame();
+                shells = [];
+                particles = [];
+                shrapnel = [];
+                comets = [];
+                winFlag = false;
+                gameActive = true;
+                playerFlash = 0;
+            });
+            
+            // Настройки: открыть/закрыть меню
+            settingsIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                settingsMenu.classList.toggle('show');
+            });
+            // Закрыть меню при клике вне
+            document.addEventListener('click', (e) => {
+                if (!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) {
+                    settingsMenu.classList.remove('show');
+                }
+            });
+            // Выбор количества врагов
+            document.querySelectorAll('.settings-menu button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const count = parseInt(btn.getAttribute('data-enemies'), 10);
+                    if (!isNaN(count) && count !== ENEMY_COUNT) {
+                        ENEMY_COUNT = count;
+                        resetGame();
+                    }
+                    settingsMenu.classList.remove('show');
+                });
+            });
+            
+            window.addEventListener('resize', () => {
+                handleResize();
+            });
+            
+            gameLoop();
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
