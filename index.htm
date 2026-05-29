@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — обновлённая кнопка</title>
+    <title>НЛО-шутер — стабильная версия без звуков</title>
     <style>
         * {
             user-select: none;
@@ -65,27 +65,24 @@
             color: #ffd966;
             transition: color 0.1s ease;
         }
-        /* Новая кнопка "ЗАНОВО" — сиреневая, другой шрифт, меньше */
         .reset-btn {
             position: absolute;
-            background: #9b59b6;
+            background: #aa88ff;
             border: none;
             font-size: 16px;
             font-weight: bold;
-            padding: 4px 16px;
+            padding: 4px 14px;
             border-radius: 40px;
-            color: #f0f0f0;
+            color: #1e1a2a;
             cursor: pointer;
             font-family: 'Segoe UI', 'Verdana', sans-serif;
-            box-shadow: 0 3px 0 #6c3483;
+            box-shadow: 0 3px 0 #6a4aaf;
             transition: 0.07s linear;
             z-index: 15;
-            letter-spacing: 0.5px;
         }
         .reset-btn:active {
             transform: translateY(2px);
-            box-shadow: 0 1px 0 #6c3483;
-            background: #8e44ad;
+            box-shadow: 0 1px 0 #6a4aaf;
         }
         .settings-icon {
             position: absolute;
@@ -246,7 +243,7 @@
         let playerFlash = 0;
         let playerDestroyed = false;
         
-        let enemyFlash = []; // { index, timer }
+        let enemyFlash = [];
         
         let shells = [];
         let SHELL_RADIUS;
@@ -275,10 +272,7 @@
         let pendingGameOver = false;
         let gameOverDelayTimer = null;
         
-        // Скорость движения звёзд
         const STAR_SPEED = 0.64;
-        
-        // Цветовые схемы для врагов (Hue)
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
@@ -342,17 +336,6 @@
                 }
                 pendingGameOver = false;
             }, 400);
-        }
-        
-        function immediateGameOver() {
-            if (gameActive) {
-                gameActive = false;
-                winFlag = true;
-                showGameOver();
-            }
-            if (gameOverDelayTimer) clearTimeout(gameOverDelayTimer);
-            pendingGameOver = false;
-            playerDestroyed = false;
         }
         
         function recalcDimensions() {
@@ -538,8 +521,8 @@
                     if (gameActive && !playerDestroyed) {
                         scheduleGameOver();
                         enemyBullets = [];
+                        break;
                     }
-                    break;
                 }
             }
         }
@@ -555,14 +538,19 @@
         }
         
         function destroyEnemy(idx, addScore = true) {
-            if(!enemies[idx]) return false;
-            createExplosion(enemies[idx].x, enemies[idx].y);
-            enemies.splice(idx,1);
+            if (idx < 0 || idx >= enemies.length) return false;
+            const enemy = enemies[idx];
+            if (!enemy) return false;
             enemyFlash = enemyFlash.filter(f => f.index !== idx);
             for(let f of enemyFlash) {
                 if(f.index > idx) f.index--;
             }
-            if(addScore) { score++; updateScoreUI(); }
+            createExplosion(enemy.x, enemy.y);
+            enemies.splice(idx, 1);
+            if(addScore) { 
+                score++; 
+                updateScoreUI(); 
+            }
             checkWin();
             return true;
         }
@@ -570,29 +558,51 @@
         function updateShells() {
             for(let i=shells.length-1; i>=0; i--) {
                 const s = shells[i];
-                s.x += s.vx; s.y += s.vy;
+                s.x += s.vx;
+                s.y += s.vy;
                 if(s.x+SHELL_RADIUS<0 || s.x-SHELL_RADIUS>canvasWidth || s.y+SHELL_RADIUS<0 || s.y-SHELL_RADIUS>canvasHeight) {
                     shells.splice(i,1);
                     if(gameActive && !playerDestroyed) { score--; updateScoreUI(); }
                     continue;
                 }
-                let hit = -1;
+                let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(s.x-e.x, s.y-e.y) < e.r + SHELL_RADIUS) { hit=j; break; }
+                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) {
+                        hitIndex = j;
+                        break;
+                    }
                 }
-                if(hit!==-1) { destroyEnemy(hit, true); shells.splice(i,1); }
+                if(hitIndex !== -1) {
+                    destroyEnemy(hitIndex, true);
+                    shells.splice(i,1);
+                }
             }
         }
         
         function updateShrapnel() {
             for(let i=0; i<shrapnel.length; i++) {
                 const sh = shrapnel[i];
-                sh.x += sh.vx; sh.y += sh.vy; sh.life--;
-                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) { shrapnel.splice(i,1); i--; continue; }
+                sh.x += sh.vx;
+                sh.y += sh.vy;
+                sh.life--;
+                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) {
+                    shrapnel.splice(i,1);
+                    i--;
+                    continue;
+                }
+                let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(sh.x-e.x, sh.y-e.y) < e.r + sh.radius) { destroyEnemy(j, true); shrapnel.splice(i,1); i--; break; }
+                    if(Math.hypot(sh.x - e.x, sh.y - e.y) < e.r + sh.radius) {
+                        hitIndex = j;
+                        break;
+                    }
+                }
+                if(hitIndex !== -1) {
+                    destroyEnemy(hitIndex, true);
+                    shrapnel.splice(i,1);
+                    i--;
                 }
             }
         }
@@ -674,8 +684,7 @@
                 const c = comets[i];
                 c.trail.unshift({x:c.x, y:c.y});
                 if(c.trail.length>10) c.trail.pop();
-                c.x += c.vx;
-                c.y += c.vy;
+                c.x += c.vx; c.y += c.vy;
                 if(c.x<-150 || c.x>canvasWidth+150 || c.y<-150 || c.y>canvasHeight+150) { comets.splice(i,1); i--; }
             }
         }
