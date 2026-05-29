@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — обновлённый интерфейс</title>
+    <title>НЛО-шутер — обновлённая кнопка</title>
     <style>
         * {
             user-select: none;
@@ -43,7 +43,7 @@
             backdrop-filter: blur(4px);
             padding: 6px 14px;
             border-radius: 40px;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
             color: #ffd966;
             font-family: monospace;
@@ -64,27 +64,28 @@
         #scoreValue {
             color: #ffd966;
             transition: color 0.1s ease;
-            margin-left: 4px;
         }
+        /* Новая кнопка "ЗАНОВО" — сиреневая, другой шрифт, меньше */
         .reset-btn {
             position: absolute;
-            background: #5a5a5a;
+            background: #9b59b6;
             border: none;
             font-size: 16px;
             font-weight: bold;
-            padding: 5px 16px;
+            padding: 4px 16px;
             border-radius: 40px;
             color: #f0f0f0;
             cursor: pointer;
-            font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
-            box-shadow: 0 3px 0 #2c2c2c;
+            font-family: 'Segoe UI', 'Verdana', sans-serif;
+            box-shadow: 0 3px 0 #6c3483;
             transition: 0.07s linear;
             z-index: 15;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
         .reset-btn:active {
             transform: translateY(2px);
-            box-shadow: 0 1px 0 #2c2c2c;
+            box-shadow: 0 1px 0 #6c3483;
+            background: #8e44ad;
         }
         .settings-icon {
             position: absolute;
@@ -274,11 +275,11 @@
         let pendingGameOver = false;
         let gameOverDelayTimer = null;
         
-        // Скорость движения звёзд (пикселей на кадр) – уменьшена на 20%
+        // Скорость движения звёзд
         const STAR_SPEED = 0.64;
         
         // Цветовые схемы для врагов (Hue)
-        const enemyColorHues = [120, 0, 60, 30, 200, 270]; // зелёный, красный, жёлтый, оранжевый, голубой, фиолетовый
+        const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
         function updateDifficultyDot() {
@@ -449,7 +450,6 @@
             }
         }
         
-        // Обновление позиций звёзд (движение сверху вниз)
         function updateStars() {
             for(let s of stars) {
                 s.y += STAR_SPEED;
@@ -481,7 +481,7 @@
             updateScoreUI();
             gameActive = true;
             winFlag = false;
-            generateStars();   // звёзды перегенерируются в новых границах
+            generateStars();
             playerSpinAngle = 0;
             comets = [];
             cometSpawnTimer = 30;
@@ -905,7 +905,7 @@
                 updateComets();
                 updateEnemyBullets();
                 updateEnemyFlash();
-                updateStars();   // двигаем звёзды
+                updateStars();
                 if(currentDifficulty === 'hard' && enemies.length > 0) {
                     if(enemyShootTimer <= 0) {
                         const randomIdx = Math.floor(Math.random() * enemies.length);
