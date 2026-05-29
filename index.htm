@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — настройки, адаптация под поворот</title>
+    <title>НЛО-шутер — адаптивный экран</title>
     <style>
         * {
             user-select: none;
@@ -25,14 +25,17 @@
         }
         .game-wrapper {
             position: relative;
-            display: inline-block;
+            width: 100%;
+            height: 100%;
         }
         canvas {
             display: block;
+            width: 100%;
+            height: 100%;
             background: #0b1219;
             cursor: crosshair;
         }
-        /* Счётчик слева сверху */
+        /* Счётчик сверху слева */
         .score {
             position: absolute;
             top: 12px;
@@ -57,7 +60,7 @@
             color: #ffd966;
             transition: color 0.1s ease;
         }
-        /* Кнопка Новая игра (снизу слева или справа в зависимости от ориентации) */
+        /* Кнопка Новая игра (снизу слева или справа, будет задаваться скриптом) */
         .reset-btn {
             position: absolute;
             background: #5a5a5a;
@@ -77,7 +80,7 @@
             transform: translateY(2px);
             box-shadow: 0 1px 0 #2c2c2c;
         }
-        /* Иконка настроек (три полоски) справа сверху */
+        /* Иконка настроек справа сверху */
         .settings-icon {
             position: absolute;
             top: 16px;
@@ -141,7 +144,7 @@
         .settings-menu button:active {
             background: #5a5a5a;
         }
-        /* Оверлей финального счёта (просто число) */
+        /* Оверлей финального счёта */
         .game-over {
             position: absolute;
             top: 0;
@@ -202,14 +205,23 @@
 
 <script>
     (function(){
-        // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
-        let canvas, ctx;
+        // ----- ЭЛЕМЕНТЫ -----
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreSpan = document.getElementById('scoreValue');
+        const resetBtn = document.getElementById('resetBtn');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const finalScoreNumberSpan = document.getElementById('finalScoreNumber');
+        const settingsIcon = document.getElementById('settingsIcon');
+        const settingsMenu = document.getElementById('settingsMenu');
+        
+        // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (будут пересчитываться при resize) -----
         let PLAYER_X, PLAYER_Y;
-        let PLAYER_RADIUS = 24;
-        let FOLLOW_RADIUS = 200;
-        let ENEMY_RADIUS = 21;
-        let ENEMY_SPEED = 1.15;
-        let ENEMY_COUNT = 10;        // по умолчанию 10
+        let PLAYER_RADIUS;
+        let FOLLOW_RADIUS;
+        let ENEMY_RADIUS;
+        let ENEMY_SPEED = 1.2;  // базовая скорость (пикселей в кадр), будет масштабироваться
+        let ENEMY_COUNT = 10;
         let ENEMY_MIN_X, ENEMY_MAX_X, ENEMY_MIN_Y, ENEMY_MAX_Y;
         
         let playerSpinAngle = 0;
@@ -217,8 +229,8 @@
         let playerFlash = 0;
         
         let shells = [];
-        const SHELL_RADIUS = 6;
-        const SHELL_SPEED = 8.2;
+        let SHELL_RADIUS;
+        let SHELL_SPEED;
         
         let enemies = [];
         let particles = [];
@@ -230,18 +242,12 @@
         
         let comets = [];
         let cometSpawnTimer = 0;
-        const COMET_SPAWN_DELAY = 180;
+        let COMET_SPAWN_DELAY = 180; // кадры
         
         let stars = [];
         
         let currentOrientation = 'landscape';
-        
-        const scoreSpan = document.getElementById('scoreValue');
-        const resetBtn = document.getElementById('resetBtn');
-        const gameOverlay = document.getElementById('gameOverlay');
-        const finalScoreNumberSpan = document.getElementById('finalScoreNumber');
-        const settingsIcon = document.getElementById('settingsIcon');
-        const settingsMenu = document.getElementById('settingsMenu');
+        let canvasWidth, canvasHeight;
         
         // ----- Функция обновления счёта (цвет) -----
         function updateScoreUI() {
@@ -263,13 +269,55 @@
             }
         }
         
-        // ----- Перезапуск игры с новым количеством врагов -----
-        function restartWithEnemyCount(newCount) {
-            ENEMY_COUNT = newCount;
-            resetGame();
+        // ----- ПЕРЕСЧЁТ ВСЕХ РАЗМЕРОВ В ЗАВИСИМОСТИ ОТ РАЗМЕРА CANVAS -----
+        function recalcDimensions() {
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            // Определяем ориентацию (для размещения кнопки)
+            currentOrientation = canvasWidth > canvasHeight ? 'landscape' : 'portrait';
+            
+            // Радиусы относительно меньшей стороны
+            const baseSize = Math.min(canvasWidth, canvasHeight);
+            PLAYER_RADIUS = baseSize * 0.045;   // ~ 4.5%
+            ENEMY_RADIUS = baseSize * 0.04;
+            FOLLOW_RADIUS = baseSize * 0.22;
+            SHELL_RADIUS = baseSize * 0.012;
+            SHELL_SPEED = baseSize * 0.014;
+            // Скорость врагов масштабируем
+            ENEMY_SPEED = baseSize * 0.0022;
+            
+            // Позиция игрока
+            if (currentOrientation === 'landscape') {
+                PLAYER_X = canvasWidth * 0.12;
+                PLAYER_Y = canvasHeight * 0.5;
+                ENEMY_MIN_X = canvasWidth * 0.6;
+                ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2 - 10;
+                ENEMY_MIN_Y = ENEMY_RADIUS * 2;
+                ENEMY_MAX_Y = canvasHeight - ENEMY_RADIUS*2;
+                // Кнопка снизу слева
+                resetBtn.style.bottom = '16px';
+                resetBtn.style.left = '16px';
+                resetBtn.style.right = 'auto';
+                resetBtn.style.top = 'auto';
+            } else {
+                // portrait: игрок внизу
+                PLAYER_X = canvasWidth * 0.5;
+                PLAYER_Y = canvasHeight - canvasHeight * 0.12;
+                ENEMY_MIN_X = ENEMY_RADIUS * 2;
+                ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2;
+                ENEMY_MIN_Y = ENEMY_RADIUS * 2;
+                ENEMY_MAX_Y = canvasHeight * 0.4;
+                // Кнопка снизу справа
+                resetBtn.style.bottom = '16px';
+                resetBtn.style.right = '16px';
+                resetBtn.style.left = 'auto';
+                resetBtn.style.top = 'auto';
+            }
+            // Начальный угол пушки
+            turretAngle = currentOrientation === 'landscape' ? 0.2 : -Math.PI/2;
         }
         
-        // ----- Инициализация врагов (с учётом текущего ENEMY_COUNT) -----
+        // ----- ИНИЦИАЛИЗАЦИЯ ВРАГОВ (с учётом текущих границ) -----
         function initEnemies() {
             const newEnemies = [];
             for(let i = 0; i < ENEMY_COUNT; i++) {
@@ -306,18 +354,20 @@
             return newEnemies;
         }
         
+        // Генерация звёзд (случайно по всему экрану)
         function generateStars() {
             stars = [];
             for(let i = 0; i < 500; i++) {
                 stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
+                    x: Math.random() * canvasWidth,
+                    y: Math.random() * canvasHeight,
                     radius: Math.random() * 2 + 0.5,
                     alpha: Math.random() * 0.7 + 0.3
                 });
             }
         }
         
+        // Полный сброс игры
         function resetGame() {
             enemies = initEnemies();
             shells = [];
@@ -329,77 +379,13 @@
             winFlag = false;
             generateStars();
             playerSpinAngle = 0;
-            turretAngle = currentOrientation === 'landscape' ? 0.2 : -Math.PI/2;
             comets = [];
             cometSpawnTimer = 30;
             playerFlash = 0;
             showGameOver();
         }
         
-        function setOrientation(orientation) {
-            currentOrientation = orientation;
-            if (orientation === 'landscape') {
-                canvas.width = 900;
-                canvas.height = 600;
-                PLAYER_X = 110;
-                PLAYER_Y = canvas.height / 2;
-                ENEMY_MIN_X = 520;
-                ENEMY_MAX_X = canvas.width - ENEMY_RADIUS*2 - 15;
-                ENEMY_MIN_Y = 40;
-                ENEMY_MAX_Y = canvas.height - ENEMY_RADIUS*2 - 15;
-                resetBtn.style.bottom = '16px';
-                resetBtn.style.left = '16px';
-                resetBtn.style.right = 'auto';
-                resetBtn.style.top = 'auto';
-                // иконка настроек остаётся справа сверху (по умолчанию top/right)
-                settingsIcon.style.top = '16px';
-                settingsIcon.style.right = '16px';
-                settingsIcon.style.left = 'auto';
-                settingsIcon.style.bottom = 'auto';
-                // меню настроек привязываем к иконке
-                settingsMenu.style.top = '60px';
-                settingsMenu.style.right = '16px';
-                settingsMenu.style.left = 'auto';
-                settingsMenu.style.bottom = 'auto';
-            } else {
-                canvas.width = 600;
-                canvas.height = 900;
-                PLAYER_X = canvas.width / 2;
-                PLAYER_Y = canvas.height - 80;
-                ENEMY_MIN_X = 40;
-                ENEMY_MAX_X = canvas.width - ENEMY_RADIUS*2 - 15;
-                ENEMY_MIN_Y = 40;
-                ENEMY_MAX_Y = canvas.height / 2 - 50;
-                resetBtn.style.bottom = '16px';
-                resetBtn.style.right = '16px';
-                resetBtn.style.left = 'auto';
-                resetBtn.style.top = 'auto';
-                // иконка также справа сверху (в портрете тоже сверху справа)
-                settingsIcon.style.top = '16px';
-                settingsIcon.style.right = '16px';
-                settingsIcon.style.left = 'auto';
-                settingsIcon.style.bottom = 'auto';
-                settingsMenu.style.top = '60px';
-                settingsMenu.style.right = '16px';
-                settingsMenu.style.left = 'auto';
-                settingsMenu.style.bottom = 'auto';
-            }
-            enemies = initEnemies();
-            shells = [];
-            particles = [];
-            shrapnel = [];
-            gameActive = true;
-            winFlag = false;
-            playerFlash = 0;
-            comets = [];
-            cometSpawnTimer = 30;
-            playerSpinAngle = 0;
-            turretAngle = orientation === 'landscape' ? 0.2 : -Math.PI/2;
-            updateScoreUI();
-            generateStars();
-            showGameOver();
-        }
-        
+        // Проверка победы
         function checkWin() {
             if(enemies.length === 0 && !winFlag && gameActive) {
                 winFlag = true;
@@ -410,6 +396,7 @@
             return false;
         }
         
+        // Выстрел
         function shoot() {
             if(!gameActive) return;
             const vx = Math.cos(turretAngle) * SHELL_SPEED;
@@ -424,7 +411,7 @@
             playerFlash = 5;
         }
         
-        // ----- ОСТАЛЬНЫЕ МЕХАНИКИ (взрывы, частицы, кометы) без изменений -----
+        // ----- ФИЗИКА И ВЗРЫВЫ -----
         function createExplosion(x, y) {
             const particleCount = 18 + Math.floor(Math.random() * 12);
             for(let i = 0; i < particleCount; i++) {
@@ -462,7 +449,7 @@
                     x: x, y: y,
                     vx: vx, vy: vy,
                     life: 60,
-                    radius: 6
+                    radius: ENEMY_RADIUS * 0.3
                 });
             }
         }
@@ -485,8 +472,8 @@
                 const s = shells[i];
                 s.x += s.vx;
                 s.y += s.vy;
-                if(s.x + SHELL_RADIUS < 0 || s.x - SHELL_RADIUS > canvas.width ||
-                   s.y + SHELL_RADIUS < 0 || s.y - SHELL_RADIUS > canvas.height) {
+                if(s.x + SHELL_RADIUS < 0 || s.x - SHELL_RADIUS > canvasWidth ||
+                   s.y + SHELL_RADIUS < 0 || s.y - SHELL_RADIUS > canvasHeight) {
                     shells.splice(i,1);
                     if(gameActive) {
                         score -= 1;
@@ -517,7 +504,7 @@
                 sh.x += sh.vx;
                 sh.y += sh.vy;
                 sh.life--;
-                if(sh.life <= 0 || sh.x < -50 || sh.x > canvas.width+50 || sh.y < -50 || sh.y > canvas.height+50) {
+                if(sh.life <= 0 || sh.x < -50 || sh.x > canvasWidth+50 || sh.y < -50 || sh.y > canvasHeight+50) {
                     shrapnel.splice(i,1);
                     i--;
                     continue;
@@ -555,9 +542,9 @@
                 e.x += e.vx;
                 e.y += e.vy;
                 if(e.x - e.r < ENEMY_MIN_X) { e.x = ENEMY_MIN_X + e.r; e.vx = -e.vx; }
-                if(e.x + e.r > ENEMY_MAX_X + ENEMY_RADIUS*2) { e.x = ENEMY_MAX_X + ENEMY_RADIUS*2 - e.r; e.vx = -e.vx; }
+                if(e.x + e.r > ENEMY_MAX_X) { e.x = ENEMY_MAX_X - e.r; e.vx = -e.vx; }
                 if(e.y - e.r < ENEMY_MIN_Y) { e.y = ENEMY_MIN_Y + e.r; e.vy = -e.vy; }
-                if(e.y + e.r > ENEMY_MAX_Y + ENEMY_RADIUS*2) { e.y = ENEMY_MAX_Y + ENEMY_RADIUS*2 - e.r; e.vy = -e.vy; }
+                if(e.y + e.r > ENEMY_MAX_Y) { e.y = ENEMY_MAX_Y - e.r; e.vy = -e.vy; }
             }
             for(let i = 0; i < enemies.length; i++) {
                 for(let j = i+1; j < enemies.length; j++) {
@@ -586,30 +573,33 @@
                             b.vx += impulse * Math.cos(angle) * dot;
                             b.vy += impulse * Math.sin(angle) * dot;
                         }
-                        a.x = Math.min(Math.max(a.x, ENEMY_MIN_X + a.r), ENEMY_MAX_X + ENEMY_RADIUS*2 - a.r);
-                        a.y = Math.min(Math.max(a.y, ENEMY_MIN_Y + a.r), ENEMY_MAX_Y + ENEMY_RADIUS*2 - a.r);
-                        b.x = Math.min(Math.max(b.x, ENEMY_MIN_X + b.r), ENEMY_MAX_X + ENEMY_RADIUS*2 - b.r);
-                        b.y = Math.min(Math.max(b.y, ENEMY_MIN_Y + b.r), ENEMY_MAX_Y + ENEMY_RADIUS*2 - b.r);
+                        a.x = Math.min(Math.max(a.x, ENEMY_MIN_X + a.r), ENEMY_MAX_X - a.r);
+                        a.y = Math.min(Math.max(a.y, ENEMY_MIN_Y + a.r), ENEMY_MAX_Y - a.r);
+                        b.x = Math.min(Math.max(b.x, ENEMY_MIN_X + b.r), ENEMY_MAX_X - b.r);
+                        b.y = Math.min(Math.max(b.y, ENEMY_MIN_Y + b.r), ENEMY_MAX_Y - b.r);
                     }
                 }
             }
         }
         
-        // ----- КОМЕТЫ -----
+        // ----- КОМЕТЫ (относительные скорости) -----
         function spawnComet() {
             const side = Math.floor(Math.random() * 4);
             let x, y, vx, vy;
             let speed = 2 + Math.random() * 2;
             const isFast = Math.random() < 0.20;
             if(isFast) speed *= 3;
-            if(side === 0) { x = -10; y = Math.random() * canvas.height; vx = speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
-            else if(side === 1) { x = canvas.width + 10; y = Math.random() * canvas.height; vx = -speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
-            else if(side === 2) { x = Math.random() * canvas.width; y = -10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = speed; }
-            else { x = Math.random() * canvas.width; y = canvas.height + 10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = -speed; }
+            // Масштабируем скорость кометы относительно размера экрана
+            const scaleSpeed = Math.min(canvasWidth, canvasHeight) * 0.004;
+            speed *= scaleSpeed;
+            if(side === 0) { x = -10; y = Math.random() * canvasHeight; vx = speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
+            else if(side === 1) { x = canvasWidth + 10; y = Math.random() * canvasHeight; vx = -speed; vy = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); }
+            else if(side === 2) { x = Math.random() * canvasWidth; y = -10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = speed; }
+            else { x = Math.random() * canvasWidth; y = canvasHeight + 10; vx = (Math.random() - 0.5) * 1.5 * (isFast ? 2 : 1); vy = -speed; }
             comets.push({ 
                 x: x, y: y, vx: vx, vy: vy, trail: [],
                 isFast: isFast,
-                size: isFast ? 3.5 : 2.5,
+                size: (isFast ? 3.5 : 2.5) * (Math.min(canvasWidth, canvasHeight) * 0.004),
                 glow: isFast ? "#ffaa66" : "#ffe0a0"
             });
         }
@@ -627,7 +617,7 @@
                 if(c.trail.length > 10) c.trail.pop();
                 c.x += c.vx;
                 c.y += c.vy;
-                if(c.x < -150 || c.x > canvas.width + 150 || c.y < -150 || c.y > canvas.height + 150) {
+                if(c.x < -150 || c.x > canvasWidth + 150 || c.y < -150 || c.y > canvasHeight + 150) {
                     comets.splice(i,1);
                     i--;
                 }
@@ -661,10 +651,11 @@
             }
         }
         
+        // ----- ПРИЦЕЛИВАНИЕ -----
         function updateAimFromPointer(event) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const scaleX = canvasWidth / rect.width;
+            const scaleY = canvasHeight / rect.height;
             let clientX, clientY;
             if (event.touches) {
                 clientX = event.touches[0].clientX;
@@ -675,8 +666,8 @@
             }
             let mouseX = (clientX - rect.left) * scaleX;
             let mouseY = (clientY - rect.top) * scaleY;
-            mouseX = Math.min(Math.max(mouseX, 0), canvas.width);
-            mouseY = Math.min(Math.max(mouseY, 0), canvas.height);
+            mouseX = Math.min(Math.max(mouseX, 0), canvasWidth);
+            mouseY = Math.min(Math.max(mouseY, 0), canvasHeight);
             const dx = mouseX - PLAYER_X;
             const dy = mouseY - PLAYER_Y;
             if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) {
@@ -684,7 +675,7 @@
             }
         }
         
-        // ----- ОТРИСОВКА (игрок, враги и т.д.) -----
+        // ----- ОТРИСОВКА -----
         function drawStars() {
             for(let s of stars) {
                 ctx.beginPath();
@@ -695,11 +686,11 @@
         }
         
         function drawBackground() {
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const grad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
             grad.addColorStop(0, "#0a1018");
             grad.addColorStop(1, "#050a10");
             ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             drawStars();
             drawComets();
         }
@@ -947,6 +938,8 @@
             drawShells();
         }
         
+        // ----- ИГРОВОЙ ЦИКЛ -----
+        let animationId = null;
         function gameLoop() {
             if(gameActive) {
                 playerSpinAngle += PLAYER_SPIN_SPEED;
@@ -958,26 +951,36 @@
                 checkWin();
             }
             draw();
-            requestAnimationFrame(gameLoop);
+            animationId = requestAnimationFrame(gameLoop);
         }
         
-        function handleResize() {
-            const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-            if (newOrientation !== currentOrientation) {
-                setOrientation(newOrientation);
-                resetGame();
-            }
+        // ----- ОБРАБОТЧИК РАЗМЕРА ЭКРАНА -----
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            recalcDimensions();
+            generateStars();        // звёзды пересоздаём под новый размер
+            enemies = initEnemies(); // пересоздаём врагов с новыми границами
+            // Сброс состояния игры, кроме счёта? Лучше полный сброс.
+            shells = [];
+            particles = [];
+            shrapnel = [];
+            score = 0;
+            updateScoreUI();
+            gameActive = true;
+            winFlag = false;
+            playerFlash = 0;
+            comets = [];
+            cometSpawnTimer = 30;
+            playerSpinAngle = 0;
+            showGameOver();
         }
         
         // ----- ИНИЦИАЛИЗАЦИЯ -----
         function init() {
-            canvas = document.getElementById('gameCanvas');
-            ctx = canvas.getContext('2d');
-            const initialOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-            setOrientation(initialOrientation);
-            resetGame();
+            resizeCanvas();
             
-            // Управление
+            // События управления
             canvas.addEventListener('mousemove', (e) => updateAimFromPointer(e));
             canvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
@@ -992,43 +995,53 @@
             });
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             
-            // Кнопка новой игры
             resetBtn.addEventListener('click', () => {
-                resetGame();
+                enemies = initEnemies();
                 shells = [];
                 particles = [];
                 shrapnel = [];
-                comets = [];
-                winFlag = false;
+                score = 0;
+                updateScoreUI();
                 gameActive = true;
+                winFlag = false;
+                comets = [];
+                cometSpawnTimer = 30;
+                playerSpinAngle = 0;
                 playerFlash = 0;
+                showGameOver();
             });
             
-            // Настройки: открыть/закрыть меню
             settingsIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 settingsMenu.classList.toggle('show');
             });
-            // Закрыть меню при клике вне
             document.addEventListener('click', (e) => {
                 if (!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) {
                     settingsMenu.classList.remove('show');
                 }
             });
-            // Выбор количества врагов
             document.querySelectorAll('.settings-menu button').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const count = parseInt(btn.getAttribute('data-enemies'), 10);
                     if (!isNaN(count) && count !== ENEMY_COUNT) {
                         ENEMY_COUNT = count;
-                        resetGame();
+                        enemies = initEnemies();
+                        shells = [];
+                        particles = [];
+                        shrapnel = [];
+                        score = 0;
+                        updateScoreUI();
+                        gameActive = true;
+                        winFlag = false;
+                        playerFlash = 0;
+                        showGameOver();
                     }
                     settingsMenu.classList.remove('show');
                 });
             });
             
             window.addEventListener('resize', () => {
-                handleResize();
+                resizeCanvas();
             });
             
             gameLoop();
