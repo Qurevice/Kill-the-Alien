@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — исправленная версия</title>
+    <title>НЛО-шутер — монеты, рекорд, волны</title>
     <style>
         * {
             user-select: none;
@@ -65,6 +65,41 @@
         #scoreValue {
             font-weight: bold;
             font-size: 22px;
+        }
+        /* Монета и счётчик монет */
+        .coin-container {
+            position: absolute;
+            top: 16px;
+            right: 60px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 15;
+            pointer-events: none;
+        }
+        .coin-icon {
+            width: 24px;
+            height: 24px;
+            background: radial-gradient(circle at 30% 30%, #ffdd77, #ffaa33);
+            border-radius: 50%;
+            border: 2px solid #ff8844;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #ff8844;
+            text-shadow: 0 0 2px #fff;
+        }
+        .coin-count {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffd966;
+            font-family: monospace;
         }
         .reset-btn {
             position: absolute;
@@ -204,6 +239,10 @@
         <div class="difficulty-dot" id="difficultyDot"></div>
         <span>Счёт: <span id="scoreValue">0</span></span>
     </div>
+    <div class="coin-container">
+        <div class="coin-icon">★</div>
+        <div class="coin-count" id="coinCount">0</div>
+    </div>
     <button id="resetBtn" class="reset-btn">ЗАНОВО</button>
     <div id="settingsIcon" class="settings-icon">
         <div></div><div></div><div></div>
@@ -238,6 +277,7 @@
         const settingsIcon = document.getElementById('settingsIcon');
         const settingsMenu = document.getElementById('settingsMenu');
         const difficultyDot = document.getElementById('difficultyDot');
+        const coinCountSpan = document.getElementById('coinCount');
         
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
@@ -287,6 +327,10 @@
         let wave = 1;
         let penalty = 1;
         
+        // Монеты и счётчики
+        let coins = 0;
+        let totalKills = 0;        // общее количество сбитых врагов (для бонуса каждые 5)
+        
         const STAR_SPEED = 0.64;
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
@@ -317,6 +361,10 @@
             scoreSpan.style.color = score < 0 ? '#ff6666' : '#ffd966';
         }
         
+        function updateCoinUI() {
+            coinCountSpan.innerText = coins;
+        }
+        
         function showGameOver() {
             if (!gameActive && winFlag) {
                 finalScoreNumberSpan.innerText = score;
@@ -341,6 +389,22 @@
                 }
                 pendingGameOver = false;
             }, 400);
+        }
+        
+        // Функция добавления монет за волну
+        function addWaveBonus() {
+            let bonus = 0;
+            if (currentDifficulty === 'easy') {
+                if (ENEMY_COUNT === 10) bonus = 5;
+                else if (ENEMY_COUNT === 15) bonus = 7;
+                else if (ENEMY_COUNT === 20) bonus = 10;
+            } else { // medium или hard
+                if (ENEMY_COUNT === 10) bonus = 7;
+                else if (ENEMY_COUNT === 15) bonus = 10;
+                else if (ENEMY_COUNT === 20) bonus = 15;
+            }
+            coins += bonus;
+            updateCoinUI();
         }
         
         function createIncomingWave() {
@@ -394,6 +458,8 @@
             if (!gameActive) return;
             wave++;
             penalty = wave;
+            // Бонус за волну
+            addWaveBonus();
             enemies = createWave();
             shells = [];
             shrapnel = [];
@@ -508,6 +574,9 @@
             playerDestroyed = false;
             wave = 1;
             penalty = 1;
+            totalKills = 0;
+            coins = 0;
+            updateCoinUI();
             randomEnemyColor();
             enemies = createWave();
             shells = [];
@@ -540,7 +609,6 @@
             playerFlash = 5;
         }
         
-        // Обработчик клика/тапа
         function onPointerDown(event) {
             if (!gameActive) return;
             const rect = canvas.getBoundingClientRect();
@@ -562,7 +630,6 @@
             shootAt(canvasX, canvasY);
         }
         
-        // Прицеливание (поворот пушки) по движению мыши/пальца (не обязательно, но оставим)
         function updateAimFromPointer(event) {
             if (!gameActive) return;
             const rect = canvas.getBoundingClientRect();
@@ -633,6 +700,21 @@
             }
         }
         
+        function addCoinsForKill() {
+            // 15% шанс получить монету
+            if (Math.random() < 0.15) {
+                coins++;
+                updateCoinUI();
+            }
+        }
+        
+        function addCoinsForEvery5Kills() {
+            if (totalKills % 5 === 0 && totalKills > 0) {
+                coins++;
+                updateCoinUI();
+            }
+        }
+        
         function destroyEnemy(idx, addScore = true) {
             if (idx < 0 || idx >= enemies.length) return false;
             const enemy = enemies[idx];
@@ -645,7 +727,10 @@
             enemies.splice(idx, 1);
             if(addScore) { 
                 score++; 
-                updateScoreUI(); 
+                updateScoreUI();
+                totalKills++;
+                addCoinsForKill();
+                addCoinsForEvery5Kills();
             }
             checkWin();
             return true;
@@ -940,7 +1025,6 @@
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             ctx.restore();
-            // линия прицела (для ориентира)
             ctx.beginPath(); ctx.moveTo(PLAYER_X, PLAYER_Y);
             const dirX = Math.cos(turretAngle)*(PLAYER_RADIUS+14), dirY = Math.sin(turretAngle)*(PLAYER_RADIUS+14);
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
@@ -1077,6 +1161,9 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
+            totalKills = 0;
+            coins = 0;
+            updateCoinUI();
             showGameOver();
         }
         
@@ -1109,7 +1196,6 @@
             resizeCanvas();
             canvas.addEventListener('mousemove', updateAimFromPointer);
             canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateAimFromPointer(e); });
-            // Стрельба по тапу/клику
             canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); });
             canvas.addEventListener('mousedown', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
