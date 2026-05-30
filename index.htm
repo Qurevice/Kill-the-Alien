@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — монеты, рекорд, бесконечные волны</title>
+    <title>НЛО-шутер — исправленная версия</title>
     <style>
+        /* ... (стили без изменений) ... */
         * {
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -35,7 +36,6 @@
             background: #0b1219;
             cursor: crosshair;
         }
-        /* Уменьшенный счётчик очков */
         .score {
             position: absolute;
             top: 12px;
@@ -66,7 +66,6 @@
             font-weight: bold;
             font-size: 22px;
         }
-        /* Блок монет справа сверху */
         .coin-panel {
             position: absolute;
             top: 16px;
@@ -283,6 +282,24 @@
         const difficultyDot = document.getElementById('difficultyDot');
         const coinAmountSpan = document.getElementById('coinAmount');
         
+        // Функция безопасного чтения из localStorage
+        function getLocalStorageItem(key, defaultValue) {
+            try {
+                const val = localStorage.getItem(key);
+                if (val === null) return defaultValue;
+                const parsed = parseInt(val, 10);
+                return isNaN(parsed) ? defaultValue : parsed;
+            } catch(e) {
+                return defaultValue;
+            }
+        }
+        
+        function setLocalStorageItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch(e) {}
+        }
+        
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
         let PLAYER_RADIUS;
@@ -331,37 +348,24 @@
         let wave = 1;
         let penalty = 1;
         
-        // Система монет
         let coins = 0;
-        let totalKills = 0;      // общее количество сбитых врагов за всё время
-        let killsSinceLastBonus = 0; // для бонуса каждые 5 убийств
+        let totalKills = 0;
+        let killsSinceLastBonus = 0;
         
         const STAR_SPEED = 0.64;
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
-        // Загрузка монет и статы из localStorage
+        // Загрузка монет и статы
         function loadStats() {
-            const savedCoins = localStorage.getItem('ufo_coins');
-            if (savedCoins !== null) {
-                coins = parseInt(savedCoins, 10);
-                if (isNaN(coins)) coins = 0;
-            } else {
-                coins = 0;
-            }
-            const savedTotalKills = localStorage.getItem('ufo_total_kills');
-            if (savedTotalKills !== null) {
-                totalKills = parseInt(savedTotalKills, 10);
-                if (isNaN(totalKills)) totalKills = 0;
-            } else {
-                totalKills = 0;
-            }
+            coins = getLocalStorageItem('ufo_coins', 0);
+            totalKills = getLocalStorageItem('ufo_total_kills', 0);
             coinAmountSpan.innerText = coins;
         }
         
         function saveStats() {
-            localStorage.setItem('ufo_coins', coins);
-            localStorage.setItem('ufo_total_kills', totalKills);
+            setLocalStorageItem('ufo_coins', coins);
+            setLocalStorageItem('ufo_total_kills', totalKills);
         }
         
         function addCoins(amount) {
@@ -372,15 +376,10 @@
             }
         }
         
-        // Вызов при уничтожении врага
         function onEnemyKilled() {
             totalKills++;
             killsSinceLastBonus++;
-            // 15% шанс получить монету
-            if (Math.random() < 0.15) {
-                addCoins(1);
-            }
-            // Бонус за каждые 5 убийств
+            if (Math.random() < 0.15) addCoins(1);
             if (killsSinceLastBonus >= 5) {
                 addCoins(1);
                 killsSinceLastBonus -= 5;
@@ -388,34 +387,23 @@
             saveStats();
         }
         
-        // Бонус за завершение волны
         function awardWaveBonus() {
             let bonus = 0;
             const isHard = (currentDifficulty === 'hard');
-            if (ENEMY_COUNT === 10) {
-                bonus = isHard ? 7 : 5;
-            } else if (ENEMY_COUNT === 15) {
-                bonus = isHard ? 10 : 7;
-            } else if (ENEMY_COUNT === 20) {
-                bonus = isHard ? 15 : 10;
-            }
+            if (ENEMY_COUNT === 10) bonus = isHard ? 7 : 5;
+            else if (ENEMY_COUNT === 15) bonus = isHard ? 10 : 7;
+            else if (ENEMY_COUNT === 20) bonus = isHard ? 15 : 10;
             addCoins(bonus);
         }
         
         function loadRecord() {
-            const saved = localStorage.getItem('ufo_shooter_record');
-            if (saved !== null) {
-                record = parseInt(saved, 10);
-                if (isNaN(record)) record = 0;
-            } else {
-                record = 0;
-            }
+            record = getLocalStorageItem('ufo_shooter_record', 0);
         }
         
         function saveRecord() {
             if (score > record) {
                 record = score;
-                localStorage.setItem('ufo_shooter_record', record);
+                setLocalStorageItem('ufo_shooter_record', record);
             }
         }
         
@@ -423,7 +411,7 @@
             scoreSpan.innerText = score;
             if (score > record) {
                 record = score;
-                localStorage.setItem('ufo_shooter_record', record);
+                setLocalStorageItem('ufo_shooter_record', record);
             }
             scoreSpan.style.color = score < 0 ? '#ff6666' : '#ffd966';
         }
@@ -457,11 +445,9 @@
         function createIncomingWave() {
             const newEnemies = [];
             const currentSpeed = ENEMY_BASE_SPEED * ENEMY_SPEED_MULTIPLIER;
-            
             for(let i = 0; i < ENEMY_COUNT; i++) {
                 let startX, startY;
                 let targetX, targetY;
-                
                 if (currentOrientation === 'landscape') {
                     startX = canvasWidth + ENEMY_RADIUS + 150 + Math.random() * 200;
                     startY = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
@@ -473,7 +459,6 @@
                     targetX = startX;
                     targetY = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
                 }
-                
                 let dx = targetX - startX;
                 let dy = targetY - startY;
                 const len = Math.hypot(dx, dy);
@@ -484,7 +469,6 @@
                     dx = currentSpeed * (Math.random() > 0.5 ? 1 : -1);
                     dy = currentSpeed * (Math.random() > 0.5 ? 1 : -1);
                 }
-                
                 newEnemies.push({
                     x: startX, y: startY, r: ENEMY_RADIUS,
                     vx: dx, vy: dy,
@@ -497,13 +481,10 @@
             return newEnemies;
         }
         
-        function createWave() {
-            return createIncomingWave();
-        }
+        function createWave() { return createIncomingWave(); }
         
         function nextWave() {
             if (!gameActive) return;
-            // Начисляем бонус за завершение волны
             awardWaveBonus();
             wave++;
             penalty = wave;
@@ -516,9 +497,7 @@
         }
         
         function checkWin() {
-            if (enemies.length === 0 && !winFlag && gameActive) {
-                nextWave();
-            }
+            if (enemies.length === 0 && !winFlag && gameActive) nextWave();
         }
         
         function createExplosion(x, y, isPlayer = false) {
@@ -543,6 +522,13 @@
         function recalcDimensions() {
             canvasWidth = canvas.width;
             canvasHeight = canvas.height;
+            if (canvasWidth === 0 || canvasHeight === 0) {
+                // Если размеры не установились, ставим временные
+                canvasWidth = window.innerWidth;
+                canvasHeight = window.innerHeight;
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+            }
             currentOrientation = canvasWidth > canvasHeight ? 'landscape' : 'portrait';
             const baseSize = Math.min(canvasWidth, canvasHeight);
             PLAYER_RADIUS = baseSize * 0.045;
@@ -580,9 +566,7 @@
         
         function normalizeSpeed(vx, vy, targetSpeed) {
             const len = Math.hypot(vx, vy);
-            if (len > 0.01) {
-                return { vx: (vx / len) * targetSpeed, vy: (vy / len) * targetSpeed };
-            }
+            if (len > 0.01) return { vx: (vx / len) * targetSpeed, vy: (vy / len) * targetSpeed };
             const angle = Math.random() * Math.PI * 2;
             return { vx: Math.cos(angle) * targetSpeed, vy: Math.sin(angle) * targetSpeed };
         }
@@ -639,7 +623,6 @@
             playerFlash = 0;
             enemyShootTimer = 0;
             showGameOver();
-            // killsSinceLastBonus НЕ обнуляем, т.к. это глобальный счётчик
         }
         
         function shootAt(x, y) {
@@ -693,9 +676,7 @@
             my = Math.min(Math.max(my,0), canvasHeight);
             const dx = mx - PLAYER_X;
             const dy = my - PLAYER_Y;
-            if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) {
-                turretAngle = Math.atan2(dy, dx);
-            }
+            if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) turretAngle = Math.atan2(dy, dx);
         }
         
         function enemyShoot(enemy, idx) {
@@ -737,10 +718,7 @@
         function updateEnemyFlash() {
             for(let i=0; i<enemyFlash.length; i++) {
                 enemyFlash[i].timer--;
-                if(enemyFlash[i].timer <= 0) {
-                    enemyFlash.splice(i,1);
-                    i--;
-                }
+                if(enemyFlash[i].timer <= 0) enemyFlash.splice(i,1), i--;
             }
         }
         
@@ -749,15 +727,13 @@
             const enemy = enemies[idx];
             if (!enemy) return false;
             enemyFlash = enemyFlash.filter(f => f.index !== idx);
-            for(let f of enemyFlash) {
-                if(f.index > idx) f.index--;
-            }
+            for(let f of enemyFlash) if(f.index > idx) f.index--;
             createExplosion(enemy.x, enemy.y);
             enemies.splice(idx, 1);
             if(addScore) { 
                 score++; 
                 updateScoreUI(); 
-                onEnemyKilled();   // начисление монет за убийство
+                onEnemyKilled();
             }
             checkWin();
             return true;
@@ -788,10 +764,7 @@
                 let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) {
-                        hitIndex = j;
-                        break;
-                    }
+                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) { hitIndex = j; break; }
                 }
                 if(hitIndex !== -1) {
                     destroyEnemy(hitIndex, true);
@@ -806,24 +779,13 @@
                 sh.x += sh.vx;
                 sh.y += sh.vy;
                 sh.life--;
-                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) {
-                    shrapnel.splice(i,1);
-                    i--;
-                    continue;
-                }
+                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) { shrapnel.splice(i,1); i--; continue; }
                 let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(sh.x - e.x, sh.y - e.y) < e.r + sh.radius) {
-                        hitIndex = j;
-                        break;
-                    }
+                    if(Math.hypot(sh.x - e.x, sh.y - e.y) < e.r + sh.radius) { hitIndex = j; break; }
                 }
-                if(hitIndex !== -1) {
-                    destroyEnemy(hitIndex, true);
-                    shrapnel.splice(i,1);
-                    i--;
-                }
+                if(hitIndex !== -1) { destroyEnemy(hitIndex, true); shrapnel.splice(i,1); i--; }
             }
         }
         
@@ -841,7 +803,6 @@
                 e.spinAngle += e.spinSpeed;
                 e.x += e.vx;
                 e.y += e.vy;
-                
                 if (e.incoming) {
                     const inside = (e.x >= ENEMY_MIN_X && e.x <= ENEMY_MAX_X && e.y >= ENEMY_MIN_Y && e.y <= ENEMY_MAX_Y);
                     if (inside) {
@@ -887,7 +848,6 @@
                     e.vy = norm.vy;
                 }
             }
-            
             for(let i=0; i<enemies.length; i++) {
                 for(let j=i+1; j<enemies.length; j++) {
                     const a=enemies[i], b=enemies[j];
@@ -1156,9 +1116,7 @@
                         enemyShootTimer--;
                     }
                 }
-                if (enemies.length === 0 && !winFlag && gameActive) {
-                    nextWave();
-                }
+                if (enemies.length === 0 && !winFlag && gameActive) nextWave();
             }
             draw();
             requestAnimationFrame(gameLoop);
@@ -1238,9 +1196,7 @@
             document.querySelectorAll('.settings-menu button[data-enemies]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const cnt = parseInt(btn.getAttribute('data-enemies'),10);
-                    if(!isNaN(cnt) && cnt !== ENEMY_COUNT) {
-                        setEnemyCount(cnt);
-                    }
+                    if(!isNaN(cnt) && cnt !== ENEMY_COUNT) setEnemyCount(cnt);
                     settingsMenu.classList.remove('show');
                 });
             });
