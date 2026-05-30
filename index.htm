@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — стрельба по нажатию</title>
+    <title>НЛО-шутер — исправленная версия</title>
     <style>
         * {
             user-select: none;
@@ -35,14 +35,15 @@
             background: #0b1219;
             cursor: crosshair;
         }
+        /* Уменьшенный счётчик */
         .score {
             position: absolute;
             top: 12px;
             left: 16px;
             background: rgba(0,0,0,0.6);
             backdrop-filter: blur(4px);
-            padding: 4px 10px;
-            border-radius: 40px;
+            padding: 4px 12px;
+            border-radius: 30px;
             font-size: 20px;
             font-weight: bold;
             color: #ffd966;
@@ -59,10 +60,11 @@
             height: 12px;
             border-radius: 50%;
             background-color: #88ff44;
-            box-shadow: 0 0 3px currentColor;
+            box-shadow: 0 0 4px currentColor;
         }
         #scoreValue {
             font-weight: bold;
+            font-size: 22px;
         }
         .reset-btn {
             position: absolute;
@@ -156,35 +158,33 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 20;
             pointer-events: none;
-            gap: 20px;
         }
         .final-score-box {
-            background: rgba(0,0,0,0.7);
-            border-radius: 80px;
-            padding: 20px 40px;
+            background: rgba(0,0,0,0.85);
+            border-radius: 40px;
+            padding: 30px 50px;
             text-align: center;
-            backdrop-filter: none;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 40px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
         .final-score-number {
             font-size: 80px;
             font-weight: bold;
             color: #ffd966;
             font-family: monospace;
-            letter-spacing: 5px;
-            text-shadow: 0 0 20px #ffaa33;
+            letter-spacing: 4px;
+            text-shadow: 0 0 15px #ffaa33;
         }
         .final-record {
             font-size: 28px;
             color: #ffaa66;
-            background: rgba(0,0,0,0.5);
-            padding: 8px 20px;
-            border-radius: 40px;
             font-family: monospace;
         }
         .game-over {
@@ -220,8 +220,8 @@
     <div id="gameOverlay" class="game-over">
         <div class="final-score-box">
             <div class="final-score-number" id="finalScoreNumber">0</div>
+            <div class="final-record" id="finalRecordSpan"></div>
         </div>
-        <div class="final-record" id="finalRecordSpan">🏆 Рекорд: 0</div>
     </div>
 </div>
 
@@ -343,7 +343,6 @@
             }, 400);
         }
         
-        // Функция создания волны с прилётом из-за экрана
         function createIncomingWave() {
             const newEnemies = [];
             const currentSpeed = ENEMY_BASE_SPEED * ENEMY_SPEED_MULTIPLIER;
@@ -392,6 +391,7 @@
         }
         
         function nextWave() {
+            if (!gameActive) return;
             wave++;
             penalty = wave;
             enemies = createWave();
@@ -403,11 +403,9 @@
         }
         
         function checkWin() {
-            if(enemies.length === 0 && !winFlag && gameActive) {
+            if (enemies.length === 0 && !winFlag && gameActive) {
                 nextWave();
-                return false;
             }
-            return false;
         }
         
         function createExplosion(x, y, isPlayer = false) {
@@ -530,29 +528,63 @@
             showGameOver();
         }
         
-        // Новая функция выстрела: принимает координаты цели (клика/тапа)
-        function shootAt(targetX, targetY) {
-            if(!gameActive || playerDestroyed) return;
-            // Вычисляем угол от игрока к точке касания
-            const dx = targetX - PLAYER_X;
-            const dy = targetY - PLAYER_Y;
+        // Новая механика стрельбы: выстрел в точку клика/тапа
+        function shootAt(x, y) {
+            if (!gameActive || playerDestroyed) return;
+            const dx = x - PLAYER_X;
+            const dy = y - PLAYER_Y;
             const angle = Math.atan2(dy, dx);
             const vx = Math.cos(angle) * SHELL_SPEED;
             const vy = Math.sin(angle) * SHELL_SPEED;
             shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS });
             playerFlash = 5;
-            // Также обновляем угол пушки для визуального отклика (не обязательно, но приятно)
-            turretAngle = angle;
         }
         
-        // Старая функция shoot для совместимости (если где-то вызывается без параметров)
-        function shootLegacy() {
-            if(!gameActive || playerDestroyed) return;
-            // Стреляем по текущему углу пушки
-            const vx = Math.cos(turretAngle) * SHELL_SPEED;
-            const vy = Math.sin(turretAngle) * SHELL_SPEED;
-            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS });
-            playerFlash = 5;
+        // Обработчик клика/тапа
+        function onPointerDown(event) {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvasWidth / rect.width;
+            const scaleY = canvasHeight / rect.height;
+            let clientX, clientY;
+            if (event.touches) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+                event.preventDefault();
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            let canvasX = (clientX - rect.left) * scaleX;
+            let canvasY = (clientY - rect.top) * scaleY;
+            canvasX = Math.min(Math.max(canvasX, 0), canvasWidth);
+            canvasY = Math.min(Math.max(canvasY, 0), canvasHeight);
+            shootAt(canvasX, canvasY);
+        }
+        
+        // Прицеливание (поворот пушки) по движению мыши/пальца (не обязательно, но оставим)
+        function updateAimFromPointer(event) {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvasWidth / rect.width;
+            const scaleY = canvasHeight / rect.height;
+            let clientX, clientY;
+            if (event.touches) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            let mx = (clientX - rect.left) * scaleX;
+            let my = (clientY - rect.top) * scaleY;
+            mx = Math.min(Math.max(mx,0), canvasWidth);
+            my = Math.min(Math.max(my,0), canvasHeight);
+            const dx = mx - PLAYER_X;
+            const dy = my - PLAYER_Y;
+            if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) {
+                turretAngle = Math.atan2(dy, dx);
+            }
         }
         
         function enemyShoot(enemy, idx) {
@@ -823,22 +855,6 @@
             }
         }
         
-        function updateAimFromPointer(event) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvasWidth / rect.width;
-            const scaleY = canvasHeight / rect.height;
-            let clientX, clientY;
-            if(event.touches) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; }
-            else { clientX = event.clientX; clientY = event.clientY; }
-            let mx = (clientX - rect.left) * scaleX;
-            let my = (clientY - rect.top) * scaleY;
-            mx = Math.min(Math.max(mx,0), canvasWidth);
-            my = Math.min(Math.max(my,0), canvasHeight);
-            const dx = mx - PLAYER_X, dy = my - PLAYER_Y;
-            if(Math.hypot(dx,dy) <= FOLLOW_RADIUS) turretAngle = Math.atan2(dy, dx);
-        }
-        
-        // ----- ОТРИСОВКА -----
         function drawStars() {
             for(let s of stars) {
                 ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
@@ -924,7 +940,7 @@
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             ctx.restore();
-            // Линия прицела (для обратной связи)
+            // линия прицела (для ориентира)
             ctx.beginPath(); ctx.moveTo(PLAYER_X, PLAYER_Y);
             const dirX = Math.cos(turretAngle)*(PLAYER_RADIUS+14), dirY = Math.sin(turretAngle)*(PLAYER_RADIUS+14);
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
@@ -1088,34 +1104,14 @@
             }
         }
         
-        // Обработчик клика/тапа: стреляем по координатам
-        function onPointerDown(event) {
-            event.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvasWidth / rect.width;
-            const scaleY = canvasHeight / rect.height;
-            let clientX, clientY;
-            if (event.touches) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            let canvasX = (clientX - rect.left) * scaleX;
-            let canvasY = (clientY - rect.top) * scaleY;
-            canvasX = Math.min(Math.max(canvasX, 0), canvasWidth);
-            canvasY = Math.min(Math.max(canvasY, 0), canvasHeight);
-            shootAt(canvasX, canvasY);
-        }
-        
         function init() {
             loadRecord();
             resizeCanvas();
             canvas.addEventListener('mousemove', updateAimFromPointer);
             canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateAimFromPointer(e); });
+            // Стрельба по тапу/клику
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); });
             canvas.addEventListener('mousedown', onPointerDown);
-            canvas.addEventListener('touchstart', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             
             resetBtn.addEventListener('click', () => { resetGame(); });
