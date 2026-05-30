@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — монеты, рекорд, волны</title>
+    <title>НЛО-шутер — монеты, рекорд, бесконечные волны</title>
     <style>
         * {
             user-select: none;
@@ -35,7 +35,7 @@
             background: #0b1219;
             cursor: crosshair;
         }
-        /* Уменьшенный счётчик */
+        /* Уменьшенный счётчик очков */
         .score {
             position: absolute;
             top: 12px;
@@ -66,40 +66,44 @@
             font-weight: bold;
             font-size: 22px;
         }
-        /* Монета и счётчик монет */
-        .coin-container {
+        /* Блок монет справа сверху */
+        .coin-panel {
             position: absolute;
             top: 16px;
-            right: 60px;
+            right: 65px;
             background: rgba(0,0,0,0.6);
             backdrop-filter: blur(4px);
-            padding: 4px 12px;
-            border-radius: 30px;
+            padding: 4px 12px 4px 8px;
+            border-radius: 40px;
             display: flex;
             align-items: center;
             gap: 8px;
-            z-index: 15;
+            z-index: 10;
             pointer-events: none;
         }
         .coin-icon {
-            width: 24px;
-            height: 24px;
-            background: radial-gradient(circle at 30% 30%, #ffdd77, #ffaa33);
+            width: 28px;
+            height: 28px;
+            background: radial-gradient(circle at 30% 30%, #ffcc44, #e6a800);
             border-radius: 50%;
-            border: 2px solid #ff8844;
+            border: 2px solid #ff8800;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 18px;
+            color: #ff8800;
             font-weight: bold;
-            color: #ff8844;
-            text-shadow: 0 0 2px #fff;
         }
-        .coin-count {
-            font-size: 20px;
+        .coin-icon span {
+            font-size: 18px;
+            line-height: 1;
+        }
+        .coin-amount {
+            font-size: 22px;
             font-weight: bold;
-            color: #ffd966;
+            color: #ffcc44;
             font-family: monospace;
+            text-shadow: 0 0 2px #000;
         }
         .reset-btn {
             position: absolute;
@@ -239,9 +243,9 @@
         <div class="difficulty-dot" id="difficultyDot"></div>
         <span>Счёт: <span id="scoreValue">0</span></span>
     </div>
-    <div class="coin-container">
-        <div class="coin-icon">★</div>
-        <div class="coin-count" id="coinCount">0</div>
+    <div class="coin-panel">
+        <div class="coin-icon"><span>★</span></div>
+        <div class="coin-amount" id="coinAmount">0</div>
     </div>
     <button id="resetBtn" class="reset-btn">ЗАНОВО</button>
     <div id="settingsIcon" class="settings-icon">
@@ -277,7 +281,7 @@
         const settingsIcon = document.getElementById('settingsIcon');
         const settingsMenu = document.getElementById('settingsMenu');
         const difficultyDot = document.getElementById('difficultyDot');
-        const coinCountSpan = document.getElementById('coinCount');
+        const coinAmountSpan = document.getElementById('coinAmount');
         
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
@@ -327,13 +331,76 @@
         let wave = 1;
         let penalty = 1;
         
-        // Монеты и счётчики
+        // Система монет
         let coins = 0;
-        let totalKills = 0;        // общее количество сбитых врагов (для бонуса каждые 5)
+        let totalKills = 0;      // общее количество сбитых врагов за всё время
+        let killsSinceLastBonus = 0; // для бонуса каждые 5 убийств
         
         const STAR_SPEED = 0.64;
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
+        
+        // Загрузка монет и статы из localStorage
+        function loadStats() {
+            const savedCoins = localStorage.getItem('ufo_coins');
+            if (savedCoins !== null) {
+                coins = parseInt(savedCoins, 10);
+                if (isNaN(coins)) coins = 0;
+            } else {
+                coins = 0;
+            }
+            const savedTotalKills = localStorage.getItem('ufo_total_kills');
+            if (savedTotalKills !== null) {
+                totalKills = parseInt(savedTotalKills, 10);
+                if (isNaN(totalKills)) totalKills = 0;
+            } else {
+                totalKills = 0;
+            }
+            coinAmountSpan.innerText = coins;
+        }
+        
+        function saveStats() {
+            localStorage.setItem('ufo_coins', coins);
+            localStorage.setItem('ufo_total_kills', totalKills);
+        }
+        
+        function addCoins(amount) {
+            if (amount > 0) {
+                coins += amount;
+                coinAmountSpan.innerText = coins;
+                saveStats();
+            }
+        }
+        
+        // Вызов при уничтожении врага
+        function onEnemyKilled() {
+            totalKills++;
+            killsSinceLastBonus++;
+            // 15% шанс получить монету
+            if (Math.random() < 0.15) {
+                addCoins(1);
+            }
+            // Бонус за каждые 5 убийств
+            if (killsSinceLastBonus >= 5) {
+                addCoins(1);
+                killsSinceLastBonus -= 5;
+            }
+            saveStats();
+        }
+        
+        // Бонус за завершение волны
+        function awardWaveBonus() {
+            let bonus = 0;
+            const isHard = (currentDifficulty === 'hard');
+            if (ENEMY_COUNT === 10) {
+                bonus = isHard ? 7 : 5;
+            } else if (ENEMY_COUNT === 15) {
+                bonus = isHard ? 10 : 7;
+            } else if (ENEMY_COUNT === 20) {
+                bonus = isHard ? 15 : 10;
+            }
+            addCoins(bonus);
+        }
         
         function loadRecord() {
             const saved = localStorage.getItem('ufo_shooter_record');
@@ -361,10 +428,6 @@
             scoreSpan.style.color = score < 0 ? '#ff6666' : '#ffd966';
         }
         
-        function updateCoinUI() {
-            coinCountSpan.innerText = coins;
-        }
-        
         function showGameOver() {
             if (!gameActive && winFlag) {
                 finalScoreNumberSpan.innerText = score;
@@ -389,22 +452,6 @@
                 }
                 pendingGameOver = false;
             }, 400);
-        }
-        
-        // Функция добавления монет за волну
-        function addWaveBonus() {
-            let bonus = 0;
-            if (currentDifficulty === 'easy') {
-                if (ENEMY_COUNT === 10) bonus = 5;
-                else if (ENEMY_COUNT === 15) bonus = 7;
-                else if (ENEMY_COUNT === 20) bonus = 10;
-            } else { // medium или hard
-                if (ENEMY_COUNT === 10) bonus = 7;
-                else if (ENEMY_COUNT === 15) bonus = 10;
-                else if (ENEMY_COUNT === 20) bonus = 15;
-            }
-            coins += bonus;
-            updateCoinUI();
         }
         
         function createIncomingWave() {
@@ -456,10 +503,10 @@
         
         function nextWave() {
             if (!gameActive) return;
+            // Начисляем бонус за завершение волны
+            awardWaveBonus();
             wave++;
             penalty = wave;
-            // Бонус за волну
-            addWaveBonus();
             enemies = createWave();
             shells = [];
             shrapnel = [];
@@ -574,9 +621,6 @@
             playerDestroyed = false;
             wave = 1;
             penalty = 1;
-            totalKills = 0;
-            coins = 0;
-            updateCoinUI();
             randomEnemyColor();
             enemies = createWave();
             shells = [];
@@ -595,9 +639,9 @@
             playerFlash = 0;
             enemyShootTimer = 0;
             showGameOver();
+            // killsSinceLastBonus НЕ обнуляем, т.к. это глобальный счётчик
         }
         
-        // Новая механика стрельбы: выстрел в точку клика/тапа
         function shootAt(x, y) {
             if (!gameActive || playerDestroyed) return;
             const dx = x - PLAYER_X;
@@ -700,21 +744,6 @@
             }
         }
         
-        function addCoinsForKill() {
-            // 15% шанс получить монету
-            if (Math.random() < 0.15) {
-                coins++;
-                updateCoinUI();
-            }
-        }
-        
-        function addCoinsForEvery5Kills() {
-            if (totalKills % 5 === 0 && totalKills > 0) {
-                coins++;
-                updateCoinUI();
-            }
-        }
-        
         function destroyEnemy(idx, addScore = true) {
             if (idx < 0 || idx >= enemies.length) return false;
             const enemy = enemies[idx];
@@ -727,10 +756,8 @@
             enemies.splice(idx, 1);
             if(addScore) { 
                 score++; 
-                updateScoreUI();
-                totalKills++;
-                addCoinsForKill();
-                addCoinsForEvery5Kills();
+                updateScoreUI(); 
+                onEnemyKilled();   // начисление монет за убийство
             }
             checkWin();
             return true;
@@ -1161,9 +1188,6 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
-            totalKills = 0;
-            coins = 0;
-            updateCoinUI();
             showGameOver();
         }
         
@@ -1175,6 +1199,11 @@
                 case 'hard': ENEMY_SPEED_MULTIPLIER = 2.0; break;
             }
             updateDifficultyDot();
+            resetGame();
+        }
+        
+        function setEnemyCount(count) {
+            ENEMY_COUNT = count;
             resetGame();
         }
         
@@ -1192,6 +1221,7 @@
         }
         
         function init() {
+            loadStats();
             loadRecord();
             resizeCanvas();
             canvas.addEventListener('mousemove', updateAimFromPointer);
@@ -1209,8 +1239,7 @@
                 btn.addEventListener('click', (e) => {
                     const cnt = parseInt(btn.getAttribute('data-enemies'),10);
                     if(!isNaN(cnt) && cnt !== ENEMY_COUNT) {
-                        ENEMY_COUNT = cnt;
-                        resetGame();
+                        setEnemyCount(cnt);
                     }
                     settingsMenu.classList.remove('show');
                 });
