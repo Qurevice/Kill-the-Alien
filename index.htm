@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — пробивной снаряд (обратное вращение)</title>
+    <title>Kill the Alien</title>
     <style>
         * {
             user-select: none;
@@ -223,6 +223,7 @@
             margin-left: auto;
             color: #ffcc44;
         }
+        /* Цвета для кнопок сложности (текст) */
         button[data-difficulty="easy"] {
             color: #88ff88 !important;
         }
@@ -276,6 +277,32 @@
         .game-over.show {
             opacity: 1;
         }
+        /* Стартовый экран */
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            font-size: 32px;
+            color: #ffd966;
+            font-family: monospace;
+            text-align: center;
+            flex-direction: column;
+            gap: 20px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .start-screen span {
+            font-size: 20px;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
@@ -315,6 +342,10 @@
             <div class="final-record" id="finalRecordSpan"></div>
         </div>
     </div>
+    <div id="startScreen" class="start-screen">
+        ⚡ KILL THE ALIEN ⚡<br>
+        <span>Нажмите в любом месте, чтобы начать</span>
+    </div>
 </div>
 
 <script>
@@ -334,6 +365,7 @@
         const shopMenu = document.getElementById('shopMenu');
         const difficultyDot = document.getElementById('difficultyDot');
         const coinAmountSpan = document.getElementById('coinAmount');
+        const startScreen = document.getElementById('startScreen');
         
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
@@ -408,6 +440,7 @@
             { id: 'ricochet', name: 'Рикошет', price: 1200 }
         ];
         
+        // ----- ФУНКЦИИ ИНИЦИАЛИЗАЦИИ (вызываются после стартового экрана) -----
         function loadStats() {
             try {
                 const savedCoins = localStorage.getItem('ufo_coins');
@@ -1137,7 +1170,7 @@
                     ctx.fill();
                 }
             } else if (currentSkin === 'pierce') {
-                // ПРОБИВНОЙ СНАРЯД — чёрно-золотой, брутальный, спицы против часовой стрелки
+                // НОВЫЙ ПРОБИВНОЙ СНАРЯД — чёрно-золотой, брутальный
                 ctx.fillStyle = "#1a1a1a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#2a2a2a";
@@ -1150,7 +1183,7 @@
                 ctx.stroke();
                 // Вращающиеся золотые спицы (6 штук) — ПРОТИВ ЧАСОВОЙ СТРЕЛКИ
                 for(let i=0;i<6;i++) {
-                    const angle = (i/6)*Math.PI*2 - playerSpinAngle * 1.5; // минус = против часовой
+                    const angle = (i/6)*Math.PI*2 - playerSpinAngle * 1.5;
                     const r = PLAYER_RADIUS + 2;
                     const x1 = Math.cos(angle) * (r-1);
                     const y1 = Math.sin(angle) * (r-1);
@@ -1178,6 +1211,7 @@
                     ctx.lineWidth = 1;
                     ctx.stroke();
                 }
+                // Тёмные бронеполосы
                 for(let i=0;i<4;i++) {
                     const angle = (i/4)*Math.PI*2;
                     ctx.beginPath();
@@ -1187,6 +1221,7 @@
                     ctx.fillStyle = "#111";
                     ctx.fill();
                 }
+                // Энергетические лампы
                 for(let i=0;i<6;i++) {
                     const angle = (i/6)*Math.PI*2;
                     const x = Math.cos(angle)*(PLAYER_RADIUS-3);
@@ -1241,7 +1276,7 @@
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
             
-            // Общие элементы
+            // Общие элементы (заклёпки, кабина, антенна)
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1277,6 +1312,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
+        // Враг без оранжевого треугольника
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1353,6 +1389,8 @@
             drawShells();
         }
         
+        // ----- ИГРОВОЙ ЦИКЛ -----
+        let animationId = null;
         function gameLoop() {
             if(gameActive) {
                 playerSpinAngle += PLAYER_SPIN_SPEED;
@@ -1377,7 +1415,7 @@
                 if (enemies.length === 0 && !winFlag && gameActive) nextWave();
             }
             draw();
-            requestAnimationFrame(gameLoop);
+            animationId = requestAnimationFrame(gameLoop);
         }
         
         function resizeCanvas() {
@@ -1423,7 +1461,24 @@
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         
-        function init() {
+        // Логика авто-закрытия меню
+        settingsIcon.addEventListener('click', () => {
+            shopMenu.classList.remove('show');
+            settingsMenu.classList.toggle('show');
+        });
+        shopIcon.addEventListener('click', () => {
+            settingsMenu.classList.remove('show');
+            shopMenu.classList.toggle('show');
+        });
+        // Закрытие при клике вне
+        document.addEventListener('click', (e) => {
+            if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
+            if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
+        });
+        
+        // Стартовый экран: всё инициализируем только после касания
+        function startGame() {
+            startScreen.style.display = 'none';
             loadStats();
             loadRecord();
             resizeCanvas();
@@ -1435,13 +1490,6 @@
             canvas.addEventListener('mousedown', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             resetBtn.addEventListener('click', () => { resetGame(); });
-            
-            settingsIcon.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.toggle('show'); });
-            shopIcon.addEventListener('click', (e) => { e.stopPropagation(); shopMenu.classList.toggle('show'); });
-            document.addEventListener('click', (e) => {
-                if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
-                if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
-            });
             
             document.querySelectorAll('.settings-menu button[data-enemies]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -1462,7 +1510,8 @@
             gameLoop();
         }
         
-        init();
+        startScreen.addEventListener('click', startGame);
+        startScreen.addEventListener('touchstart', startGame);
     })();
 </script>
 </body>
