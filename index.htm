@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — магазин скинов (новые цены)</title>
+    <title>НЛО-шутер — скины с огоньками и ценами</title>
     <style>
         * {
             user-select: none;
@@ -376,6 +376,7 @@
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
+        // Новые цены
         const skinsList = [
             { id: 'default', name: 'Обычный', price: 0 },
             { id: 'shield', name: 'Щит', price: 500 },
@@ -970,6 +971,25 @@
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             
+            // ОГОНЬКИ для всех скинов, кроме обычного (9 штук)
+            if (currentSkin !== 'default') {
+                const lightCount = 9;
+                for(let i=0; i<lightCount; i++) {
+                    const angle = (i / lightCount) * Math.PI * 2 + playerSpinAngle * 1.5;
+                    const x = Math.cos(angle) * (PLAYER_RADIUS + 2);
+                    const y = Math.sin(angle) * (PLAYER_RADIUS + 2);
+                    ctx.shadowBlur = 6;
+                    ctx.fillStyle = `hsl(${i * 40 + Date.now() * 0.01}, 80%, 65%)`;
+                    ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.shadowBlur = 2;
+                    ctx.fillStyle = `hsl(${i * 40 + Date.now() * 0.01}, 100%, 80%)`;
+                    ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+            
+            // Отрисовка корпуса в зависимости от скина
             if (currentSkin === 'shield') {
                 ctx.fillStyle = "#3388ff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
@@ -977,11 +997,12 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+                // Увеличенный ареол щита (радиус +12)
                 if (shieldActive) {
-                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+4,0,Math.PI*2);
-                    ctx.fillStyle = "rgba(100,200,255,0.3)";
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
+                    ctx.fillStyle = "rgba(100,200,255,0.25)";
                     ctx.fill();
-                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+4,0,Math.PI*2);
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
                     ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
                 }
             } else if (currentSkin === 'fast') {
@@ -1013,6 +1034,7 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fillStyle = "#d0d8e0"; ctx.fill();
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
+            // Общие детали (заклёпки, кабина, антенна)
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1030,12 +1052,15 @@
             const antenaH = PLAYER_RADIUS * 0.25;
             ctx.beginPath(); ctx.moveTo(0, -cockpitR); ctx.lineTo(-3, -cockpitR - antenaH); ctx.lineTo(3, -cockpitR - antenaH); ctx.fillStyle = "#c0c8d0"; ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.arc(0, -cockpitR - antenaH, 2, 0, Math.PI*2); ctx.fillStyle = "#ffaa66"; ctx.fill(); ctx.stroke();
-            for(let i=0;i<12;i++) {
-                const angle = (i/12)*Math.PI*2;
-                const x = Math.cos(angle)*(PLAYER_RADIUS-2), y = Math.sin(angle)*(PLAYER_RADIUS-2);
-                ctx.shadowBlur = 3; ctx.shadowColor = `hsl(${200+i*5},100%,65%)`;
-                ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},80%,65%)`; ctx.fill();
-                ctx.shadowBlur = 1; ctx.beginPath(); ctx.arc(x,y,0.8,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},100%,80%)`; ctx.fill();
+            // Старые огоньки (12 штук) оставляем только для обычного скина, для других они уже нарисованы выше
+            if (currentSkin === 'default') {
+                for(let i=0;i<12;i++) {
+                    const angle = (i/12)*Math.PI*2;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS-2), y = Math.sin(angle)*(PLAYER_RADIUS-2);
+                    ctx.shadowBlur = 3; ctx.shadowColor = `hsl(${200+i*5},100%,65%)`;
+                    ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},80%,65%)`; ctx.fill();
+                    ctx.shadowBlur = 1; ctx.beginPath(); ctx.arc(x,y,0.8,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},100%,80%)`; ctx.fill();
+                }
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             ctx.restore();
