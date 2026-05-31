@@ -440,7 +440,31 @@
             { id: 'ricochet', name: 'Рикошет', price: 1200 }
         ];
         
-        // ----- ФУНКЦИИ ИНИЦИАЛИЗАЦИИ (вызываются после стартового экрана) -----
+        // Эффект тряски экрана
+        let shake = 0; // сила тряски в пикселях
+        let lastCanvasTransform = { x: 0, y: 0 };
+        
+        function applyShake() {
+            if (shake > 0) {
+                const intensity = shake;
+                const offsetX = (Math.random() - 0.5) * intensity;
+                const offsetY = (Math.random() - 0.5) * intensity;
+                canvas.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+                shake *= 0.85; // затухание
+                if (shake < 0.1) {
+                    shake = 0;
+                    canvas.style.transform = '';
+                }
+            } else {
+                if (canvas.style.transform) canvas.style.transform = '';
+            }
+        }
+        
+        function addShake(intensity) {
+            shake = Math.min(shake + intensity, 12);
+        }
+        
+        // ----- ФУНКЦИИ ИНИЦИАЛИЗАЦИИ -----
         function loadStats() {
             try {
                 const savedCoins = localStorage.getItem('ufo_coins');
@@ -562,6 +586,7 @@
                 killsSinceLastBonus -= 5;
             }
             saveStats();
+            addShake(5); // тряска при попадании
         }
         
         function awardWaveBonus() {
@@ -1170,7 +1195,7 @@
                     ctx.fill();
                 }
             } else if (currentSkin === 'pierce') {
-                // НОВЫЙ ПРОБИВНОЙ СНАРЯД — чёрно-золотой, брутальный
+                // Чёрно-золотой пробивной снаряд
                 ctx.fillStyle = "#1a1a1a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#2a2a2a";
@@ -1181,7 +1206,6 @@
                 ctx.strokeStyle = "#ffcc44";
                 ctx.lineWidth = 2;
                 ctx.stroke();
-                // Вращающиеся золотые спицы (6 штук) — ПРОТИВ ЧАСОВОЙ СТРЕЛКИ
                 for(let i=0;i<6;i++) {
                     const angle = (i/6)*Math.PI*2 - playerSpinAngle * 1.5;
                     const r = PLAYER_RADIUS + 2;
@@ -1196,7 +1220,6 @@
                     ctx.lineWidth = 2.5;
                     ctx.stroke();
                 }
-                // Острые шипы
                 for(let i=0;i<8;i++) {
                     const angle = (i/8)*Math.PI*2 + playerSpinAngle * 2;
                     const x = Math.cos(angle) * (PLAYER_RADIUS + 1);
@@ -1211,7 +1234,6 @@
                     ctx.lineWidth = 1;
                     ctx.stroke();
                 }
-                // Тёмные бронеполосы
                 for(let i=0;i<4;i++) {
                     const angle = (i/4)*Math.PI*2;
                     ctx.beginPath();
@@ -1221,7 +1243,6 @@
                     ctx.fillStyle = "#111";
                     ctx.fill();
                 }
-                // Энергетические лампы
                 for(let i=0;i<6;i++) {
                     const angle = (i/6)*Math.PI*2;
                     const x = Math.cos(angle)*(PLAYER_RADIUS-3);
@@ -1276,7 +1297,7 @@
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
             
-            // Общие элементы (заклёпки, кабина, антенна)
+            // Общие элементы
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1312,7 +1333,6 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
-        // Враг без оранжевого треугольника
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1389,7 +1409,6 @@
             drawShells();
         }
         
-        // ----- ИГРОВОЙ ЦИКЛ -----
         let animationId = null;
         function gameLoop() {
             if(gameActive) {
@@ -1415,6 +1434,7 @@
                 if (enemies.length === 0 && !winFlag && gameActive) nextWave();
             }
             draw();
+            applyShake(); // применение тряски экрана
             animationId = requestAnimationFrame(gameLoop);
         }
         
@@ -1461,22 +1481,12 @@
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         
-        // Логика авто-закрытия меню
-        settingsIcon.addEventListener('click', () => {
-            shopMenu.classList.remove('show');
+        // Закрытие магазина при открытии настроек
+        function closeShopAndOpenSettings() {
             settingsMenu.classList.toggle('show');
-        });
-        shopIcon.addEventListener('click', () => {
-            settingsMenu.classList.remove('show');
-            shopMenu.classList.toggle('show');
-        });
-        // Закрытие при клике вне
-        document.addEventListener('click', (e) => {
-            if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
-            if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
-        });
+            shopMenu.classList.remove('show');
+        }
         
-        // Стартовый экран: всё инициализируем только после касания
         function startGame() {
             startScreen.style.display = 'none';
             loadStats();
@@ -1490,6 +1500,17 @@
             canvas.addEventListener('mousedown', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             resetBtn.addEventListener('click', () => { resetGame(); });
+            
+            settingsIcon.addEventListener('click', closeShopAndOpenSettings);
+            shopIcon.addEventListener('click', (e) => { 
+                e.stopPropagation();
+                shopMenu.classList.toggle('show');
+                settingsMenu.classList.remove('show');
+            });
+            document.addEventListener('click', (e) => {
+                if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
+                if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
+            });
             
             document.querySelectorAll('.settings-menu button[data-enemies]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
