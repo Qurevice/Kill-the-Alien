@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — скины с огоньками и ценами</title>
+    <title>НЛО-шутер — финальная версия с ценами</title>
     <style>
         * {
             user-select: none;
@@ -51,6 +51,12 @@
             z-index: 10;
             letter-spacing: 1px;
             display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-start;
+        }
+        .score-row {
+            display: flex;
             align-items: center;
             gap: 8px;
         }
@@ -64,6 +70,11 @@
         #scoreValue {
             font-weight: bold;
             font-size: 22px;
+        }
+        .wave-text {
+            font-size: 14px;
+            color: #aaddff;
+            letter-spacing: 1px;
         }
         .coin-panel {
             position: absolute;
@@ -262,8 +273,11 @@
 <div class="game-wrapper">
     <canvas id="gameCanvas"></canvas>
     <div class="score">
-        <div class="difficulty-dot" id="difficultyDot"></div>
-        <span>Счёт: <span id="scoreValue">0</span></span>
+        <div class="score-row">
+            <div class="difficulty-dot" id="difficultyDot"></div>
+            <span>Счёт: <span id="scoreValue">0</span></span>
+        </div>
+        <div class="wave-text">Волна: <span id="waveValue">1</span></div>
     </div>
     <div class="coin-panel">
         <div class="coin-icon"><span>★</span></div>
@@ -300,6 +314,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreSpan = document.getElementById('scoreValue');
+        const waveSpan = document.getElementById('waveValue');
         const resetBtn = document.getElementById('resetBtn');
         const gameOverlay = document.getElementById('gameOverlay');
         const finalScoreNumberSpan = document.getElementById('finalScoreNumber');
@@ -376,13 +391,12 @@
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
-        // Новые цены
         const skinsList = [
             { id: 'default', name: 'Обычный', price: 0 },
-            { id: 'shield', name: 'Щит', price: 500 },
+            { id: 'shield', name: 'Щит', price: 600 },
             { id: 'fast', name: 'Ускоренный снаряд', price: 800 },
             { id: 'pierce', name: 'Пробивной снаряд', price: 1000 },
-            { id: 'ricochet', name: 'Рикошет', price: 1000 }
+            { id: 'ricochet', name: 'Рикошет', price: 1200 }
         ];
         
         function loadStats() {
@@ -414,6 +428,7 @@
             }
             coinAmountSpan.innerText = coins;
             updateShopMenu();
+            updateWaveUI();
         }
         
         function saveStats() {
@@ -432,7 +447,9 @@
             ability_ricochet = (currentSkin === 'ricochet');
             if (ability_shield) shieldActive = true;
             else shieldActive = false;
-            SHELL_SPEED = SHELL_SPEED_BASE * (ability_fastBullet ? 1.6 : 1.0);
+            if (ability_fastBullet) SHELL_SPEED = SHELL_SPEED_BASE * 1.8;
+            else if (ability_ricochet) SHELL_SPEED = SHELL_SPEED_BASE * 1.2;
+            else SHELL_SPEED = SHELL_SPEED_BASE * 1.0;
         }
         
         function addCoins(amount) {
@@ -488,6 +505,10 @@
                 });
                 shopMenu.appendChild(btn);
             });
+        }
+        
+        function updateWaveUI() {
+            waveSpan.innerText = wave;
         }
         
         function onEnemyKilled() {
@@ -613,6 +634,7 @@
             enemyBullets = [];
             enemyFlash = [];
             playerDestroyed = false;
+            updateWaveUI();
         }
         
         function checkWin() {
@@ -644,10 +666,10 @@
             const baseSize = Math.min(canvasWidth, canvasHeight);
             PLAYER_RADIUS = baseSize * 0.045;
             ENEMY_RADIUS = baseSize * 0.04;
-            FOLLOW_RADIUS = Math.max(canvasWidth, canvasHeight) * 0.25;
+            FOLLOW_RADIUS = Math.max(canvasWidth, canvasHeight) * 0.28;
             SHELL_RADIUS = baseSize * 0.012;
             SHELL_SPEED_BASE = baseSize * 0.014;
-            SHELL_SPEED = SHELL_SPEED_BASE * (ability_fastBullet ? 1.6 : 1.0);
+            updateAbilities();
             ENEMY_BASE_SPEED = baseSize * 0.0022;
             if (currentOrientation === 'landscape') {
                 PLAYER_X = canvasWidth * 0.12; PLAYER_Y = canvasHeight * 0.5;
@@ -693,6 +715,7 @@
             generateStars();
             playerSpinAngle = 0; comets = []; cometSpawnTimer = 30; playerFlash = 0; enemyShootTimer = 0;
             showGameOver();
+            updateWaveUI();
         }
         
         function shootAt(x, y) {
@@ -701,7 +724,10 @@
             const angle = Math.atan2(dy, dx);
             const vx = Math.cos(angle) * SHELL_SPEED;
             const vy = Math.sin(angle) * SHELL_SPEED;
-            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS, hits: 0, maxHits: ability_pierce ? 1 : (ability_ricochet ? 3 : 1) });
+            let maxHits = 1;
+            if (ability_pierce) maxHits = Infinity;
+            if (ability_ricochet) maxHits = Infinity;
+            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS, hits: 0, maxHits: maxHits, hasHit: false });
             playerFlash = 5;
         }
         
@@ -727,7 +753,7 @@
             let mx = (clientX - rect.left) * scaleX, my = (clientY - rect.top) * scaleY;
             mx = Math.min(Math.max(mx,0), canvasWidth); my = Math.min(Math.max(my,0), canvasHeight);
             const dx = mx - PLAYER_X, dy = my - PLAYER_Y;
-            if (Math.hypot(dx,dy) <= FOLLOW_RADIUS) turretAngle = Math.atan2(dy, dx);
+            turretAngle = Math.atan2(dy, dx);
         }
         
         function enemyShoot(enemy, idx) {
@@ -785,20 +811,28 @@
                 const s = shells[i];
                 s.x += s.vx; s.y += s.vy;
                 if(s.x+SHELL_RADIUS<0 || s.x-SHELL_RADIUS>canvasWidth || s.y+SHELL_RADIUS<0 || s.y-SHELL_RADIUS>canvasHeight) {
-                    shells.splice(i,1);
                     if(gameActive && !playerDestroyed) {
-                        if (score === 0) { gameActive = false; winFlag = true; showGameOver(); return; }
-                        else { let newScore = score - penalty; if(newScore<0) newScore=0; score=newScore; updateScoreUI(); }
+                        if (!s.hasHit) {
+                            if (score === 0) { gameActive = false; winFlag = true; showGameOver(); return; }
+                            else { let newScore = score - penalty; if(newScore<0) newScore=0; score=newScore; updateScoreUI(); }
+                        }
                     }
+                    shells.splice(i,1);
                     continue;
                 }
-                let hitIndex = -1;
+                let hitIndices = [];
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) { hitIndex = j; break; }
+                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) {
+                        hitIndices.push(j);
+                    }
                 }
-                if(hitIndex !== -1) {
-                    destroyEnemy(hitIndex, true);
+                if (hitIndices.length > 0) {
+                    s.hasHit = true;
+                    for(let k=hitIndices.length-1; k>=0; k--) {
+                        const idx = hitIndices[k];
+                        destroyEnemy(idx, true);
+                    }
                     s.hits++;
                     if (s.hits >= s.maxHits) {
                         shells.splice(i,1);
@@ -896,6 +930,7 @@
             }
         }
         
+        // ----- КОМЕТЫ -----
         function spawnComet() {
             const side = Math.floor(Math.random() * 4);
             let x,y,vx,vy;
@@ -948,10 +983,15 @@
             drawStars(); drawComets();
         }
         function drawAimZone() {
-            ctx.save(); ctx.globalAlpha=0.15; ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2); ctx.fillStyle="#88ddff"; ctx.fill();
-            ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS-2, 0, Math.PI*2); ctx.strokeStyle="#66ccff"; ctx.lineWidth=2; ctx.stroke();
+            ctx.save();
+            const grad = ctx.createRadialGradient(PLAYER_X, PLAYER_Y, PLAYER_RADIUS-2, PLAYER_X, PLAYER_Y, FOLLOW_RADIUS);
+            grad.addColorStop(0, "rgba(136, 221, 255, 0.25)");
+            grad.addColorStop(0.7, "rgba(136, 221, 255, 0.1)");
+            grad.addColorStop(1, "rgba(136, 221, 255, 0)");
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2);
+            ctx.fill();
             ctx.restore();
-            ctx.setLineDash([6,10]); ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2); ctx.strokeStyle="#aaffdd"; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
         }
         
         function drawPlayer() {
@@ -971,25 +1011,6 @@
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             
-            // ОГОНЬКИ для всех скинов, кроме обычного (9 штук)
-            if (currentSkin !== 'default') {
-                const lightCount = 9;
-                for(let i=0; i<lightCount; i++) {
-                    const angle = (i / lightCount) * Math.PI * 2 + playerSpinAngle * 1.5;
-                    const x = Math.cos(angle) * (PLAYER_RADIUS + 2);
-                    const y = Math.sin(angle) * (PLAYER_RADIUS + 2);
-                    ctx.shadowBlur = 6;
-                    ctx.fillStyle = `hsl(${i * 40 + Date.now() * 0.01}, 80%, 65%)`;
-                    ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2);
-                    ctx.fill();
-                    ctx.shadowBlur = 2;
-                    ctx.fillStyle = `hsl(${i * 40 + Date.now() * 0.01}, 100%, 80%)`;
-                    ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            }
-            
-            // Отрисовка корпуса в зависимости от скина
             if (currentSkin === 'shield') {
                 ctx.fillStyle = "#3388ff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
@@ -997,35 +1018,220 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                // Увеличенный ареол щита (радиус +12)
                 if (shieldActive) {
-                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.fillStyle = "rgba(100,200,255,0.25)";
                     ctx.fill();
-                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
                 }
+                for(let i=0;i<12;i++) {
+                    const angle = (i/12)*Math.PI*2 + playerSpinAngle * 2;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS+2);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS+2);
+                    ctx.shadowBlur = 5;
+                    ctx.fillStyle = `hsl(${i * 30 + Date.now() * 0.01}, 100%, 60%)`;
+                    ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+                }
             } else if (currentSkin === 'fast') {
-                ctx.fillStyle = "#222";
-                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#444";
-                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#666";
-                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+                // Ускоренный снаряд
+                ctx.beginPath();
+                for(let i = 0; i < 7; i++) {
+                    const angle1 = (i / 7) * Math.PI * 2 - Math.PI/2;
+                    const angle2 = angle1 + (Math.PI / 7);
+                    const x1 = Math.cos(angle1) * PLAYER_RADIUS;
+                    const y1 = Math.sin(angle1) * PLAYER_RADIUS;
+                    const x2 = Math.cos(angle2) * (PLAYER_RADIUS * 0.6);
+                    const y2 = Math.sin(angle2) * (PLAYER_RADIUS * 0.6);
+                    if(i === 0) ctx.moveTo(x1, y1);
+                    else ctx.lineTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                }
+                ctx.closePath();
+                const grad = ctx.createLinearGradient(-PLAYER_RADIUS, -PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_RADIUS);
+                grad.addColorStop(0, "#9b59b6");
+                grad.addColorStop(1, "#4a1a6b");
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = "#ff88ff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                for(let i = 0; i < 7; i++) {
+                    const angle = (i / 7) * Math.PI * 2 + playerSpinAngle * 2;
+                    const r = PLAYER_RADIUS + 4;
+                    const x1 = Math.cos(angle) * r;
+                    const y1 = Math.sin(angle) * r;
+                    const x2 = Math.cos(angle + 0.6) * (r - 3);
+                    const y2 = Math.sin(angle + 0.6) * (r - 3);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(x1*0.8, y1*0.8, x2, y2);
+                    ctx.strokeStyle = `hsl(${280 + i*30}, 100%, 65%)`;
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+                }
+                for(let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + playerSpinAngle * 3;
+                    const r1 = PLAYER_RADIUS * 0.5;
+                    const r2 = PLAYER_RADIUS * 0.9;
+                    const x1 = Math.cos(angle) * r1;
+                    const y1 = Math.sin(angle) * r1;
+                    const x2 = Math.cos(angle + 0.3) * r2;
+                    const y2 = Math.sin(angle + 0.3) * r2;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = "#ffaaff";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+                for(let i = 0; i < 7; i++) {
+                    const angle = (i / 7) * Math.PI * 2 + Math.PI;
+                    const x = Math.cos(angle) * (PLAYER_RADIUS + 2);
+                    const y = Math.sin(angle) * (PLAYER_RADIUS + 2);
+                    ctx.fillStyle = "#ffaa44";
+                    ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                    for(let j=1; j<=3; j++) {
+                        const px = x - Math.cos(angle) * j * 2;
+                        const py = y - Math.sin(angle) * j * 2;
+                        ctx.fillStyle = `rgba(255, 170, 68, ${0.3 - j*0.1})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 1.5 - j*0.3, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                }
+                for(let i = 0; i < 7; i++) {
+                    const angle = (i / 7) * Math.PI * 2 + playerSpinAngle * 2.5;
+                    const r = PLAYER_RADIUS + 2;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+                    ctx.fillStyle = "#ffcc44";
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + 5*Math.cos(angle+0.7), y + 5*Math.sin(angle+0.7));
+                    ctx.lineTo(x + 5*Math.cos(angle-0.7), y + 5*Math.sin(angle-0.7));
+                    ctx.fill();
+                    ctx.fillStyle = "#ffaa00";
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + 3*Math.cos(angle+0.5), y + 3*Math.sin(angle+0.5));
+                    ctx.lineTo(x + 3*Math.cos(angle-0.5), y + 3*Math.sin(angle-0.5));
+                    ctx.fill();
+                }
+                for(let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2 + Math.PI;
+                    const x = Math.cos(angle) * (PLAYER_RADIUS + 3 + i*2);
+                    const y = Math.sin(angle) * (PLAYER_RADIUS + 3 + i*2);
+                    ctx.fillStyle = `rgba(155, 89, 182, ${0.2 - i*0.05})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4 - i, 0, Math.PI*2);
+                    ctx.fill();
+                }
             } else if (currentSkin === 'pierce') {
-                ctx.fillStyle = "#8b5a2b";
+                // Пробивной снаряд: треугольные шипы, усиленные чёрные линии, чёрный кант
+                ctx.fillStyle = "#8b0000";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#6b4a1b";
+                ctx.fillStyle = "#5c0000";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#aa7a3b";
+                ctx.fillStyle = "#3a0000";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+                
+                // Бронепластины (6 сегментов) с жирным чёрным кантом
+                for(let i=0;i<6;i++) {
+                    const angle = (i/6)*Math.PI*2;
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(Math.cos(angle)*(PLAYER_RADIUS-2), Math.sin(angle)*(PLAYER_RADIUS-2));
+                    ctx.lineTo(Math.cos(angle+0.5)*(PLAYER_RADIUS-2), Math.sin(angle+0.5)*(PLAYER_RADIUS-2));
+                    ctx.fillStyle = "#2a2a2a";
+                    ctx.fill();
+                    ctx.strokeStyle = "#000000";
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+                }
+                // Шипы (треугольные) с тонким чёрным кантом
+                for(let i=0;i<8;i++) {
+                    const angle = (i/8)*Math.PI*2;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS+2);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS+2);
+                    ctx.fillStyle = "#cc5500";
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + 5*Math.cos(angle+0.5), y + 5*Math.sin(angle+0.5));
+                    ctx.lineTo(x + 5*Math.cos(angle-0.5), y + 5*Math.sin(angle-0.5));
+                    ctx.fill();
+                    ctx.strokeStyle = "#000000";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                // Тёмные линии (броня) – усилены чёрным цветом
+                for(let i=0;i<4;i++) {
+                    const angle = (i/4)*Math.PI*2;
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(Math.cos(angle)*(PLAYER_RADIUS-4), Math.sin(angle)*(PLAYER_RADIUS-4));
+                    ctx.lineTo(Math.cos(angle+0.3)*(PLAYER_RADIUS-4), Math.sin(angle+0.3)*(PLAYER_RADIUS-4));
+                    ctx.fillStyle = "#111";
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(Math.cos(angle)*(PLAYER_RADIUS-5), Math.sin(angle)*(PLAYER_RADIUS-5));
+                    ctx.lineTo(Math.cos(angle+0.2)*(PLAYER_RADIUS-5), Math.sin(angle+0.2)*(PLAYER_RADIUS-5));
+                    ctx.fillStyle = "#000";
+                    ctx.fill();
+                    ctx.strokeStyle = "#000000";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                // Красные лампы (5 штук)
+                for(let i=0;i<5;i++) {
+                    const angle = (i/5)*Math.PI*2 + playerSpinAngle;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS-3);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS-3);
+                    ctx.fillStyle = "#ff3300";
+                    ctx.beginPath(); ctx.arc(x,y,2,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "#ff6600";
+                    ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fill();
+                }
             } else if (currentSkin === 'ricochet') {
-                ctx.fillStyle = "#e0e0e0";
+                // Рикошет: ярко-жёлтый, белые лампы, множество мигающих частиц
+                ctx.fillStyle = "#ffcc44";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#c0c0c0";
+                ctx.fillStyle = "#e6b800";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#ffdd88";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+                
+                // Белые лампы (3 штуки)
+                for(let i=0;i<3;i++) {
+                    const angle = (i/3)*Math.PI*2;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS-2);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS-2);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "rgba(255,255,200,0.9)";
+                    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+                }
+                // Мигающие частицы (искры)
+                for(let i=0;i<24;i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = PLAYER_RADIUS + 2 + Math.random() * 4;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+                    const alpha = 0.4 + Math.random() * 0.6;
+                    ctx.fillStyle = `rgba(255, 200, 100, ${alpha})`;
+                    ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                // Дополнительные искры, вращающиеся
+                for(let i=0;i<8;i++) {
+                    const angle = (i/8)*Math.PI*2 + playerSpinAngle * 3;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS+3);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS+3);
+                    ctx.fillStyle = "#ffaa66";
+                    ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
+                }
             } else {
                 const grad = ctx.createRadialGradient(-6,-6,5,0,0,PLAYER_RADIUS);
                 grad.addColorStop(0,"#f8f8fc"); grad.addColorStop(0.5,"#b0b8c0"); grad.addColorStop(1,"#708090");
@@ -1034,7 +1240,8 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fillStyle = "#d0d8e0"; ctx.fill();
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
-            // Общие детали (заклёпки, кабина, антенна)
+            
+            // Общие элементы (заклёпки, кабина, антенна)
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1052,7 +1259,7 @@
             const antenaH = PLAYER_RADIUS * 0.25;
             ctx.beginPath(); ctx.moveTo(0, -cockpitR); ctx.lineTo(-3, -cockpitR - antenaH); ctx.lineTo(3, -cockpitR - antenaH); ctx.fillStyle = "#c0c8d0"; ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.arc(0, -cockpitR - antenaH, 2, 0, Math.PI*2); ctx.fillStyle = "#ffaa66"; ctx.fill(); ctx.stroke();
-            // Старые огоньки (12 штук) оставляем только для обычного скина, для других они уже нарисованы выше
+            
             if (currentSkin === 'default') {
                 for(let i=0;i<12;i++) {
                     const angle = (i/12)*Math.PI*2;
@@ -1062,6 +1269,7 @@
                     ctx.shadowBlur = 1; ctx.beginPath(); ctx.arc(x,y,0.8,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},100%,80%)`; ctx.fill();
                 }
             }
+            
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             ctx.restore();
             ctx.beginPath(); ctx.moveTo(PLAYER_X, PLAYER_Y);
@@ -1121,16 +1329,16 @@
         function drawShells() {
             for(let s of shells) {
                 ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2);
-                ctx.fillStyle = ability_fastBullet ? "#ff4444" : "#88ff44";
+                ctx.fillStyle = ability_fastBullet ? "#ff4444" : (ability_ricochet ? "#ffaa44" : "#88ff44");
                 ctx.fill();
                 ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-2,0,Math.PI*2);
-                ctx.fillStyle = ability_fastBullet ? "#cc2222" : "#44cc22";
+                ctx.fillStyle = ability_fastBullet ? "#cc2222" : (ability_ricochet ? "#dd8800" : "#44cc22");
                 ctx.fill();
                 ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-3,0,Math.PI*2);
-                ctx.fillStyle = ability_fastBullet ? "#ff8888" : "#aaff88";
+                ctx.fillStyle = ability_fastBullet ? "#ff8888" : (ability_ricochet ? "#ffcc66" : "#aaff88");
                 ctx.fill();
                 ctx.beginPath(); ctx.arc(s.x-s.vx*1.5,s.y-s.vy*1.5,SHELL_RADIUS-3,0,Math.PI*2);
-                ctx.fillStyle = ability_fastBullet ? "#ff888844" : "#aaff8844";
+                ctx.fillStyle = ability_fastBullet ? "#ff888844" : (ability_ricochet ? "#ffcc6644" : "#aaff8844");
                 ctx.fill();
             }
         }
@@ -1198,6 +1406,7 @@
             wave = 1;
             penalty = 1;
             showGameOver();
+            updateWaveUI();
         }
         
         function setDifficulty(level) {
@@ -1224,7 +1433,6 @@
             loadRecord();
             resizeCanvas();
             updateAbilities();
-            // События
             canvas.addEventListener('mousemove', updateAimFromPointer);
             canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateAimFromPointer(e); });
             canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); });
