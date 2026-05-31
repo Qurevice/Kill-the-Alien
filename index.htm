@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — финальная версия</title>
+    <title>НЛО-шутер — пробивной снаряд (обратное вращение)</title>
     <style>
         * {
             user-select: none;
@@ -223,6 +223,15 @@
             margin-left: auto;
             color: #ffcc44;
         }
+        button[data-difficulty="easy"] {
+            color: #88ff88 !important;
+        }
+        button[data-difficulty="medium"] {
+            color: #ffcc44 !important;
+        }
+        button[data-difficulty="hard"] {
+            color: #ff6666 !important;
+        }
         .game-over {
             position: absolute;
             top: 0;
@@ -266,16 +275,6 @@
         }
         .game-over.show {
             opacity: 1;
-        }
-        /* Цвета для кнопок сложности в меню */
-        .settings-menu button[data-difficulty="easy"] {
-            color: #88ff88 !important;
-        }
-        .settings-menu button[data-difficulty="medium"] {
-            color: #ffcc44 !important;
-        }
-        .settings-menu button[data-difficulty="hard"] {
-            color: #ff4444 !important;
         }
     </style>
 </head>
@@ -401,7 +400,6 @@
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
-        // Порядок скинов: обычный, щит, ускоренный, пробивной, рикошет
         const skinsList = [
             { id: 'default', name: 'Обычный', price: 0 },
             { id: 'shield', name: 'Щит', price: 600 },
@@ -1045,7 +1043,6 @@
                     ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
                 }
             } else if (currentSkin === 'fast') {
-                // Ускоренный снаряд
                 ctx.beginPath();
                 for(let i = 0; i < 7; i++) {
                     const angle1 = (i / 7) * Math.PI * 2 - Math.PI/2;
@@ -1140,44 +1137,47 @@
                     ctx.fill();
                 }
             } else if (currentSkin === 'pierce') {
-                // Полностью переработанный пробивной снаряд
-                // Основной корпус (чёрно-красный)
-                ctx.fillStyle = "#8b0000";
+                // ПРОБИВНОЙ СНАРЯД — чёрно-золотой, брутальный, спицы против часовой стрелки
+                ctx.fillStyle = "#1a1a1a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#5c0000";
+                ctx.fillStyle = "#2a2a2a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#3a0000";
+                ctx.fillStyle = "#3a3a3a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                
-                // Бронепластины (6 сегментов) с чёрной обводкой
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+2,0,Math.PI*2);
+                ctx.strokeStyle = "#ffcc44";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Вращающиеся золотые спицы (6 штук) — ПРОТИВ ЧАСОВОЙ СТРЕЛКИ
                 for(let i=0;i<6;i++) {
-                    const angle = (i/6)*Math.PI*2;
+                    const angle = (i/6)*Math.PI*2 - playerSpinAngle * 1.5; // минус = против часовой
+                    const r = PLAYER_RADIUS + 2;
+                    const x1 = Math.cos(angle) * (r-1);
+                    const y1 = Math.sin(angle) * (r-1);
+                    const x2 = Math.cos(angle) * (r+6);
+                    const y2 = Math.sin(angle) * (r+6);
                     ctx.beginPath();
-                    ctx.moveTo(0,0);
-                    ctx.lineTo(Math.cos(angle)*(PLAYER_RADIUS-2), Math.sin(angle)*(PLAYER_RADIUS-2));
-                    ctx.lineTo(Math.cos(angle+0.5)*(PLAYER_RADIUS-2), Math.sin(angle+0.5)*(PLAYER_RADIUS-2));
-                    ctx.fillStyle = "#2a2a2a";
-                    ctx.fill();
-                    ctx.strokeStyle = "#000000";
-                    ctx.lineWidth = 2;
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = "#ffcc44";
+                    ctx.lineWidth = 2.5;
                     ctx.stroke();
                 }
-                // Шипы (треугольные) с чёрным кантом
+                // Острые шипы
                 for(let i=0;i<8;i++) {
-                    const angle = (i/8)*Math.PI*2;
-                    const x = Math.cos(angle)*(PLAYER_RADIUS+2);
-                    const y = Math.sin(angle)*(PLAYER_RADIUS+2);
-                    ctx.fillStyle = "#cc3300";
+                    const angle = (i/8)*Math.PI*2 + playerSpinAngle * 2;
+                    const x = Math.cos(angle) * (PLAYER_RADIUS + 1);
+                    const y = Math.sin(angle) * (PLAYER_RADIUS + 1);
+                    ctx.fillStyle = "#ffaa33";
                     ctx.beginPath();
                     ctx.moveTo(x, y);
-                    ctx.lineTo(x + 6*Math.cos(angle+0.5), y + 6*Math.sin(angle+0.5));
-                    ctx.lineTo(x + 6*Math.cos(angle-0.5), y + 6*Math.sin(angle-0.5));
+                    ctx.lineTo(x + 6*Math.cos(angle+0.6), y + 6*Math.sin(angle+0.6));
+                    ctx.lineTo(x + 6*Math.cos(angle-0.6), y + 6*Math.sin(angle-0.6));
                     ctx.fill();
-                    ctx.strokeStyle = "#000000";
-                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = "#000";
+                    ctx.lineWidth = 1;
                     ctx.stroke();
                 }
-                // Чёрные линии (броня) – жирные
                 for(let i=0;i<4;i++) {
                     const angle = (i/4)*Math.PI*2;
                     ctx.beginPath();
@@ -1186,30 +1186,26 @@
                     ctx.lineTo(Math.cos(angle+0.3)*(PLAYER_RADIUS-4), Math.sin(angle+0.3)*(PLAYER_RADIUS-4));
                     ctx.fillStyle = "#111";
                     ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(0,0);
-                    ctx.lineTo(Math.cos(angle)*(PLAYER_RADIUS-5), Math.sin(angle)*(PLAYER_RADIUS-5));
-                    ctx.lineTo(Math.cos(angle+0.2)*(PLAYER_RADIUS-5), Math.sin(angle+0.2)*(PLAYER_RADIUS-5));
-                    ctx.fillStyle = "#000";
-                    ctx.fill();
                 }
-                // Фиолетовое свечение (внешний ореол)
-                const glowGrad = ctx.createRadialGradient(0,0,PLAYER_RADIUS-2,0,0,PLAYER_RADIUS+6);
-                glowGrad.addColorStop(0, "rgba(180, 0, 255, 0)");
-                glowGrad.addColorStop(0.7, "rgba(180, 0, 255, 0.3)");
-                glowGrad.addColorStop(1, "rgba(180, 0, 255, 0)");
-                ctx.fillStyle = glowGrad;
-                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+6,0,Math.PI*2); ctx.fill();
+                for(let i=0;i<6;i++) {
+                    const angle = (i/6)*Math.PI*2;
+                    const x = Math.cos(angle)*(PLAYER_RADIUS-3);
+                    const y = Math.sin(angle)*(PLAYER_RADIUS-3);
+                    ctx.fillStyle = "#ffaa44";
+                    ctx.beginPath(); ctx.arc(x,y,2,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "#ffdd88";
+                    ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fill();
+                }
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+5,0,Math.PI*2);
+                ctx.fillStyle = "rgba(255, 200, 0, 0.15)";
+                ctx.fill();
             } else if (currentSkin === 'ricochet') {
-                // Рикошет: ярко-жёлтый, белые лампы, мигающие частицы
                 ctx.fillStyle = "#ffcc44";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#e6b800";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#ffdd88";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                
-                // Белые лампы (3 штуки)
                 for(let i=0;i<3;i++) {
                     const angle = (i/3)*Math.PI*2;
                     const x = Math.cos(angle)*(PLAYER_RADIUS-2);
@@ -1219,7 +1215,6 @@
                     ctx.fillStyle = "rgba(255,255,200,0.9)";
                     ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
                 }
-                // Мигающие частицы (искры)
                 for(let i=0;i<24;i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const r = PLAYER_RADIUS + 2 + Math.random() * 4;
@@ -1246,7 +1241,7 @@
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
             
-            // Общие элементы (заклёпки, кабина, антенна)
+            // Общие элементы
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1317,7 +1312,6 @@
                 ctx.shadowBlur = 2; ctx.beginPath(); ctx.arc(x,y,1.2,0,Math.PI*2); ctx.fillStyle = `hsl(${hue}, 90%, 80%)`; ctx.fill();
             }
             ctx.shadowBlur = 0;
-            ctx.beginPath(); ctx.moveTo(0, -e.r); ctx.lineTo(-5, -e.r-6); ctx.lineTo(5, -e.r-6); ctx.fillStyle = "#aa8844"; ctx.fill();
             ctx.restore();
         }
         
@@ -1421,23 +1415,20 @@
                 case 'medium': ENEMY_SPEED_MULTIPLIER = 1.7; break;
                 case 'hard': ENEMY_SPEED_MULTIPLIER = 2.0; break;
             }
-            updateDifficultyDot();
+            if (currentDifficulty === 'easy') difficultyDot.style.backgroundColor = '#88ff44';
+            else if (currentDifficulty === 'medium') difficultyDot.style.backgroundColor = '#ffcc44';
+            else difficultyDot.style.backgroundColor = '#ff4444';
             resetGame();
         }
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
-        function updateDifficultyDot() {
-            if (currentDifficulty === 'easy') difficultyDot.style.backgroundColor = '#88ff44';
-            else if (currentDifficulty === 'medium') difficultyDot.style.backgroundColor = '#ffcc44';
-            else difficultyDot.style.backgroundColor = '#ff4444';
-            difficultyDot.style.boxShadow = '0 0 4px currentColor';
-        }
         
         function init() {
             loadStats();
             loadRecord();
             resizeCanvas();
             updateAbilities();
+            difficultyDot.style.backgroundColor = '#88ff44';
             canvas.addEventListener('mousemove', updateAimFromPointer);
             canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateAimFromPointer(e); });
             canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); });
