@@ -365,59 +365,12 @@
         const coinAmountSpan = document.getElementById('coinAmount');
         const startScreen = document.getElementById('startScreen');
         
-        // ----- ТРЯСКА ЭКРАНА -----
+        // ----- ТРЯСКА ЭКРАНА (уменьшенная) -----
         let shakeIntensity = 0;
         let shakeDuration = 0;
         function addShake(intensity, duration) {
             shakeIntensity = Math.max(shakeIntensity, intensity);
             shakeDuration = Math.max(shakeDuration, duration);
-        }
-        
-        // ----- ТУМАННОСТИ -----
-        let nebulae = [];
-        function initNebulae() {
-            nebulae = [];
-            const count = 5 + Math.floor(Math.random() * 4);
-            for(let i = 0; i < count; i++) {
-                nebulae.push({
-                    x: Math.random() * canvasWidth,
-                    y: Math.random() * canvasHeight,
-                    radiusX: 150 + Math.random() * 300,
-                    radiusY: 100 + Math.random() * 250,
-                    angle: Math.random() * Math.PI * 2,
-                    speed: 0.2 + Math.random() * 0.5,
-                    color: `hsla(${Math.random() * 360}, 70%, 50%, ${0.1 + Math.random() * 0.2})`,
-                    pulse: 0.01 + Math.random() * 0.02,
-                    pulseDir: 1
-                });
-            }
-        }
-        function updateNebulae() {
-            for(let n of nebulae) {
-                n.x += Math.cos(n.angle) * n.speed;
-                n.y += Math.sin(n.angle) * n.speed;
-                if(n.x < -n.radiusX) n.x = canvasWidth + n.radiusX;
-                if(n.x > canvasWidth + n.radiusX) n.x = -n.radiusX;
-                if(n.y < -n.radiusY) n.y = canvasHeight + n.radiusY;
-                if(n.y > canvasHeight + n.radiusY) n.y = -n.radiusY;
-                n.radiusX += n.pulse * n.pulseDir;
-                n.radiusY += n.pulse * n.pulseDir;
-                if(n.radiusX < 100 || n.radiusX > 400) n.pulseDir *= -1;
-            }
-        }
-        function drawNebulae() {
-            for(let n of nebulae) {
-                ctx.save();
-                ctx.globalAlpha = 0.3;
-                const grad = ctx.createRadialGradient(n.x, n.y, 10, n.x, n.y, n.radiusX);
-                grad.addColorStop(0, n.color);
-                grad.addColorStop(1, "rgba(0,0,0,0)");
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.ellipse(n.x, n.y, n.radiusX, n.radiusY, 0, 0, Math.PI*2);
-                ctx.fill();
-                ctx.restore();
-            }
         }
         
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
@@ -614,8 +567,8 @@
                 killsSinceLastBonus -= 5;
             }
             saveStats();
-            // Увеличенная тряска: интенсивность 8, длительность 8
-            addShake(8, 8);
+            // Уменьшенная тряска: интенсивность 5, длительность 5
+            addShake(5, 5);
         }
         
         function awardWaveBonus() {
@@ -1077,7 +1030,6 @@
             grad.addColorStop(0,"#0a1018"); grad.addColorStop(1,"#050a10");
             ctx.fillStyle = grad;
             ctx.fillRect(0,0,canvasWidth,canvasHeight);
-            drawNebulae();
             drawStars();
             drawComets();
         }
@@ -1093,7 +1045,7 @@
             ctx.restore();
         }
         
-        // ---------- ПОЛНАЯ ОТРИСОВКА ИГРОКА (из предыдущей версии) ----------
+        // ---------- ПОЛНАЯ ОТРИСОВКА ИГРОКА ----------
         function drawPlayer() {
             if (playerDestroyed) return;
             ctx.save();
@@ -1363,7 +1315,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
-        // ---------- ПОЛНАЯ ОТРИСОВКА ВРАГА (без оранжевого треугольника) ----------
+        // ---------- ПОЛНАЯ ОТРИСОВКА ВРАГА ----------
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1465,7 +1417,6 @@
                 updateEnemyBullets();
                 updateEnemyFlash();
                 updateStars();
-                updateNebulae();
                 if(currentDifficulty === 'hard' && enemies.length > 0) {
                     if(enemyShootTimer <= 0) {
                         const randomIdx = Math.floor(Math.random() * enemies.length);
@@ -1487,7 +1438,6 @@
             canvas.height = window.innerHeight;
             recalcDimensions();
             generateStars();
-            initNebulae();
             randomEnemyColor();
             enemies = createWave();
             shells = [];
