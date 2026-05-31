@@ -223,7 +223,6 @@
             margin-left: auto;
             color: #ffcc44;
         }
-        /* Цвета для кнопок сложности (текст) */
         button[data-difficulty="easy"] {
             color: #88ff88 !important;
         }
@@ -277,7 +276,6 @@
         .game-over.show {
             opacity: 1;
         }
-        /* Стартовый экран */
         .start-screen {
             position: absolute;
             top: 0;
@@ -367,6 +365,61 @@
         const coinAmountSpan = document.getElementById('coinAmount');
         const startScreen = document.getElementById('startScreen');
         
+        // ----- ТРЯСКА ЭКРАНА -----
+        let shakeIntensity = 0;
+        let shakeDuration = 0;
+        function addShake(intensity, duration) {
+            shakeIntensity = Math.max(shakeIntensity, intensity);
+            shakeDuration = Math.max(shakeDuration, duration);
+        }
+        
+        // ----- ТУМАННОСТИ -----
+        let nebulae = [];
+        function initNebulae() {
+            nebulae = [];
+            const count = 5 + Math.floor(Math.random() * 4);
+            for(let i = 0; i < count; i++) {
+                nebulae.push({
+                    x: Math.random() * canvasWidth,
+                    y: Math.random() * canvasHeight,
+                    radiusX: 150 + Math.random() * 300,
+                    radiusY: 100 + Math.random() * 250,
+                    angle: Math.random() * Math.PI * 2,
+                    speed: 0.2 + Math.random() * 0.5,
+                    color: `hsla(${Math.random() * 360}, 70%, 50%, ${0.1 + Math.random() * 0.2})`,
+                    pulse: 0.01 + Math.random() * 0.02,
+                    pulseDir: 1
+                });
+            }
+        }
+        function updateNebulae() {
+            for(let n of nebulae) {
+                n.x += Math.cos(n.angle) * n.speed;
+                n.y += Math.sin(n.angle) * n.speed;
+                if(n.x < -n.radiusX) n.x = canvasWidth + n.radiusX;
+                if(n.x > canvasWidth + n.radiusX) n.x = -n.radiusX;
+                if(n.y < -n.radiusY) n.y = canvasHeight + n.radiusY;
+                if(n.y > canvasHeight + n.radiusY) n.y = -n.radiusY;
+                n.radiusX += n.pulse * n.pulseDir;
+                n.radiusY += n.pulse * n.pulseDir;
+                if(n.radiusX < 100 || n.radiusX > 400) n.pulseDir *= -1;
+            }
+        }
+        function drawNebulae() {
+            for(let n of nebulae) {
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                const grad = ctx.createRadialGradient(n.x, n.y, 10, n.x, n.y, n.radiusX);
+                grad.addColorStop(0, n.color);
+                grad.addColorStop(1, "rgba(0,0,0,0)");
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.ellipse(n.x, n.y, n.radiusX, n.radiusY, 0, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
         let PLAYER_RADIUS;
@@ -440,31 +493,6 @@
             { id: 'ricochet', name: 'Рикошет', price: 1200 }
         ];
         
-        // Эффект тряски экрана
-        let shake = 0; // сила тряски в пикселях
-        let lastCanvasTransform = { x: 0, y: 0 };
-        
-        function applyShake() {
-            if (shake > 0) {
-                const intensity = shake;
-                const offsetX = (Math.random() - 0.5) * intensity;
-                const offsetY = (Math.random() - 0.5) * intensity;
-                canvas.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-                shake *= 0.85; // затухание
-                if (shake < 0.1) {
-                    shake = 0;
-                    canvas.style.transform = '';
-                }
-            } else {
-                if (canvas.style.transform) canvas.style.transform = '';
-            }
-        }
-        
-        function addShake(intensity) {
-            shake = Math.min(shake + intensity, 12);
-        }
-        
-        // ----- ФУНКЦИИ ИНИЦИАЛИЗАЦИИ -----
         function loadStats() {
             try {
                 const savedCoins = localStorage.getItem('ufo_coins');
@@ -586,7 +614,8 @@
                 killsSinceLastBonus -= 5;
             }
             saveStats();
-            addShake(5); // тряска при попадании
+            // Увеличенная тряска: интенсивность 8, длительность 8
+            addShake(8, 8);
         }
         
         function awardWaveBonus() {
@@ -1046,8 +1075,11 @@
         function drawBackground() {
             const grad = ctx.createLinearGradient(0,0,0,canvasHeight);
             grad.addColorStop(0,"#0a1018"); grad.addColorStop(1,"#050a10");
-            ctx.fillStyle = grad; ctx.fillRect(0,0,canvasWidth,canvasHeight);
-            drawStars(); drawComets();
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,canvasWidth,canvasHeight);
+            drawNebulae();
+            drawStars();
+            drawComets();
         }
         function drawAimZone() {
             ctx.save();
@@ -1061,6 +1093,7 @@
             ctx.restore();
         }
         
+        // ---------- ПОЛНАЯ ОТРИСОВКА ИГРОКА (из предыдущей версии) ----------
         function drawPlayer() {
             if (playerDestroyed) return;
             ctx.save();
@@ -1195,7 +1228,6 @@
                     ctx.fill();
                 }
             } else if (currentSkin === 'pierce') {
-                // Чёрно-золотой пробивной снаряд
                 ctx.fillStyle = "#1a1a1a";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#2a2a2a";
@@ -1297,7 +1329,6 @@
                 ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
             }
             
-            // Общие элементы
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1325,7 +1356,6 @@
                     ctx.shadowBlur = 1; ctx.beginPath(); ctx.arc(x,y,0.8,0,Math.PI*2); ctx.fillStyle = `hsl(${200+i*5},100%,80%)`; ctx.fill();
                 }
             }
-            
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
             ctx.restore();
             ctx.beginPath(); ctx.moveTo(PLAYER_X, PLAYER_Y);
@@ -1333,6 +1363,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
+        // ---------- ПОЛНАЯ ОТРИСОВКА ВРАГА (без оранжевого треугольника) ----------
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1398,7 +1429,20 @@
             }
         }
         
+        let shakeX = 0, shakeY = 0;
+        function applyShake() {
+            if (shakeDuration > 0 && shakeIntensity > 0) {
+                shakeX = (Math.random() - 0.5) * shakeIntensity * 2;
+                shakeY = (Math.random() - 0.5) * shakeIntensity * 2;
+                ctx.translate(shakeX, shakeY);
+                shakeDuration--;
+                if (shakeDuration === 0) shakeIntensity = 0;
+            }
+        }
+        
         function draw() {
+            ctx.save();
+            applyShake();
             drawBackground();
             drawAimZone();
             for(let i=0; i<enemies.length; i++) drawEnemy(enemies[i], i);
@@ -1407,9 +1451,9 @@
             drawShrapnel();
             drawPlayer();
             drawShells();
+            ctx.restore();
         }
         
-        let animationId = null;
         function gameLoop() {
             if(gameActive) {
                 playerSpinAngle += PLAYER_SPIN_SPEED;
@@ -1421,6 +1465,7 @@
                 updateEnemyBullets();
                 updateEnemyFlash();
                 updateStars();
+                updateNebulae();
                 if(currentDifficulty === 'hard' && enemies.length > 0) {
                     if(enemyShootTimer <= 0) {
                         const randomIdx = Math.floor(Math.random() * enemies.length);
@@ -1434,8 +1479,7 @@
                 if (enemies.length === 0 && !winFlag && gameActive) nextWave();
             }
             draw();
-            applyShake(); // применение тряски экрана
-            animationId = requestAnimationFrame(gameLoop);
+            requestAnimationFrame(gameLoop);
         }
         
         function resizeCanvas() {
@@ -1443,6 +1487,7 @@
             canvas.height = window.innerHeight;
             recalcDimensions();
             generateStars();
+            initNebulae();
             randomEnemyColor();
             enemies = createWave();
             shells = [];
@@ -1481,12 +1526,6 @@
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         
-        // Закрытие магазина при открытии настроек
-        function closeShopAndOpenSettings() {
-            settingsMenu.classList.toggle('show');
-            shopMenu.classList.remove('show');
-        }
-        
         function startGame() {
             startScreen.style.display = 'none';
             loadStats();
@@ -1501,12 +1540,8 @@
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             resetBtn.addEventListener('click', () => { resetGame(); });
             
-            settingsIcon.addEventListener('click', closeShopAndOpenSettings);
-            shopIcon.addEventListener('click', (e) => { 
-                e.stopPropagation();
-                shopMenu.classList.toggle('show');
-                settingsMenu.classList.remove('show');
-            });
+            settingsIcon.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.toggle('show'); });
+            shopIcon.addEventListener('click', (e) => { e.stopPropagation(); shopMenu.classList.toggle('show'); });
             document.addEventListener('click', (e) => {
                 if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
                 if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
