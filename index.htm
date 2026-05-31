@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — финальная версия с ценами</title>
+    <title>НЛО-шутер — финальная версия</title>
     <style>
         * {
             user-select: none;
@@ -267,6 +267,16 @@
         .game-over.show {
             opacity: 1;
         }
+        /* Цвета для кнопок сложности в меню */
+        .settings-menu button[data-difficulty="easy"] {
+            color: #88ff88 !important;
+        }
+        .settings-menu button[data-difficulty="medium"] {
+            color: #ffcc44 !important;
+        }
+        .settings-menu button[data-difficulty="hard"] {
+            color: #ff4444 !important;
+        }
     </style>
 </head>
 <body>
@@ -391,6 +401,7 @@
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
+        // Порядок скинов: обычный, щит, ускоренный, пробивной, рикошет
         const skinsList = [
             { id: 'default', name: 'Обычный', price: 0 },
             { id: 'shield', name: 'Щит', price: 600 },
@@ -1129,7 +1140,8 @@
                     ctx.fill();
                 }
             } else if (currentSkin === 'pierce') {
-                // Пробивной снаряд: треугольные шипы, усиленные чёрные линии, чёрный кант
+                // Полностью переработанный пробивной снаряд
+                // Основной корпус (чёрно-красный)
                 ctx.fillStyle = "#8b0000";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#5c0000";
@@ -1137,7 +1149,7 @@
                 ctx.fillStyle = "#3a0000";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
                 
-                // Бронепластины (6 сегментов) с жирным чёрным кантом
+                // Бронепластины (6 сегментов) с чёрной обводкой
                 for(let i=0;i<6;i++) {
                     const angle = (i/6)*Math.PI*2;
                     ctx.beginPath();
@@ -1147,25 +1159,25 @@
                     ctx.fillStyle = "#2a2a2a";
                     ctx.fill();
                     ctx.strokeStyle = "#000000";
-                    ctx.lineWidth = 2.5;
+                    ctx.lineWidth = 2;
                     ctx.stroke();
                 }
-                // Шипы (треугольные) с тонким чёрным кантом
+                // Шипы (треугольные) с чёрным кантом
                 for(let i=0;i<8;i++) {
                     const angle = (i/8)*Math.PI*2;
                     const x = Math.cos(angle)*(PLAYER_RADIUS+2);
                     const y = Math.sin(angle)*(PLAYER_RADIUS+2);
-                    ctx.fillStyle = "#cc5500";
+                    ctx.fillStyle = "#cc3300";
                     ctx.beginPath();
                     ctx.moveTo(x, y);
-                    ctx.lineTo(x + 5*Math.cos(angle+0.5), y + 5*Math.sin(angle+0.5));
-                    ctx.lineTo(x + 5*Math.cos(angle-0.5), y + 5*Math.sin(angle-0.5));
+                    ctx.lineTo(x + 6*Math.cos(angle+0.5), y + 6*Math.sin(angle+0.5));
+                    ctx.lineTo(x + 6*Math.cos(angle-0.5), y + 6*Math.sin(angle-0.5));
                     ctx.fill();
                     ctx.strokeStyle = "#000000";
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 2;
                     ctx.stroke();
                 }
-                // Тёмные линии (броня) – усилены чёрным цветом
+                // Чёрные линии (броня) – жирные
                 for(let i=0;i<4;i++) {
                     const angle = (i/4)*Math.PI*2;
                     ctx.beginPath();
@@ -1180,22 +1192,16 @@
                     ctx.lineTo(Math.cos(angle+0.2)*(PLAYER_RADIUS-5), Math.sin(angle+0.2)*(PLAYER_RADIUS-5));
                     ctx.fillStyle = "#000";
                     ctx.fill();
-                    ctx.strokeStyle = "#000000";
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
                 }
-                // Красные лампы (5 штук)
-                for(let i=0;i<5;i++) {
-                    const angle = (i/5)*Math.PI*2 + playerSpinAngle;
-                    const x = Math.cos(angle)*(PLAYER_RADIUS-3);
-                    const y = Math.sin(angle)*(PLAYER_RADIUS-3);
-                    ctx.fillStyle = "#ff3300";
-                    ctx.beginPath(); ctx.arc(x,y,2,0,Math.PI*2); ctx.fill();
-                    ctx.fillStyle = "#ff6600";
-                    ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fill();
-                }
+                // Фиолетовое свечение (внешний ореол)
+                const glowGrad = ctx.createRadialGradient(0,0,PLAYER_RADIUS-2,0,0,PLAYER_RADIUS+6);
+                glowGrad.addColorStop(0, "rgba(180, 0, 255, 0)");
+                glowGrad.addColorStop(0.7, "rgba(180, 0, 255, 0.3)");
+                glowGrad.addColorStop(1, "rgba(180, 0, 255, 0)");
+                ctx.fillStyle = glowGrad;
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+6,0,Math.PI*2); ctx.fill();
             } else if (currentSkin === 'ricochet') {
-                // Рикошет: ярко-жёлтый, белые лампы, множество мигающих частиц
+                // Рикошет: ярко-жёлтый, белые лампы, мигающие частицы
                 ctx.fillStyle = "#ffcc44";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#e6b800";
@@ -1224,7 +1230,6 @@
                     ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
                     ctx.fill();
                 }
-                // Дополнительные искры, вращающиеся
                 for(let i=0;i<8;i++) {
                     const angle = (i/8)*Math.PI*2 + playerSpinAngle * 3;
                     const x = Math.cos(angle)*(PLAYER_RADIUS+3);
