@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>НЛО-шутер — монеты, рекорд, бесконечные волны</title>
+    <title>НЛО-шутер — магазин скинов (новые цены)</title>
     <style>
         * {
             user-select: none;
@@ -122,9 +122,8 @@
             transform: translateY(2px);
             box-shadow: 0 1px 0 #6a4aaf;
         }
-        .settings-icon {
+        .settings-icon, .shop-icon {
             position: absolute;
-            top: 16px;
             right: 16px;
             width: 36px;
             height: 36px;
@@ -139,17 +138,34 @@
             z-index: 20;
             transition: 0.1s;
         }
-        .settings-icon div {
+        .settings-icon {
+            top: 16px;
+        }
+        .shop-icon {
+            top: 66px;
+            background: #aa66cc;
+        }
+        .settings-icon div, .shop-icon div {
             width: 22px;
             height: 2px;
             background: #ddd;
             margin: 3px 0;
             border-radius: 2px;
         }
-        .settings-icon:active {
+        .shop-icon div {
+            width: auto;
+            height: auto;
+            background: none;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            margin: 0;
+            line-height: 1;
+        }
+        .settings-icon:active, .shop-icon:active {
             background: rgba(0,0,0,0.8);
         }
-        .settings-menu {
+        .settings-menu, .shop-menu {
             position: absolute;
             top: 60px;
             right: 16px;
@@ -164,17 +180,21 @@
             visibility: hidden;
             transition: 0.1s;
             border: 1px solid #888;
-            min-width: 160px;
+            min-width: 220px;
         }
-        .settings-menu.show {
+        .shop-menu {
+            top: 110px;
+            right: 16px;
+        }
+        .settings-menu.show, .shop-menu.show {
             opacity: 1;
             visibility: visible;
         }
-        .settings-menu button {
+        .settings-menu button, .shop-menu button {
             background: transparent;
             border: none;
             color: #ffd966;
-            font-size: 18px;
+            font-size: 16px;
             font-family: monospace;
             padding: 8px 20px;
             text-align: left;
@@ -183,10 +203,14 @@
             transition: 0.05s;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
-        .settings-menu button:active {
+        .settings-menu button:active, .shop-menu button:active {
             background: #5a5a5a;
+        }
+        .shop-menu button .price {
+            margin-left: auto;
+            color: #ffcc44;
         }
         .game-over {
             position: absolute;
@@ -232,20 +256,6 @@
         .game-over.show {
             opacity: 1;
         }
-        /* Кнопка экспорта (скрытая, но можно добавить) */
-        .export-btn {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
-            background: #444;
-            border: none;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            color: #ccc;
-            cursor: pointer;
-            z-index: 15;
-        }
     </style>
 </head>
 <body>
@@ -263,23 +273,25 @@
     <div id="settingsIcon" class="settings-icon">
         <div></div><div></div><div></div>
     </div>
-    <div id="settingsMenu" class="settings-menu">
-        <button data-enemies="10">👽 10 врагов</button>
-        <button data-enemies="15">👽 15 врагов</button>
-        <button data-enemies="20">👽 20 врагов</button>
-        <hr style="margin: 5px 0; border-color: #555;">
-        <button data-difficulty="easy">🟢 Простой</button>
-        <button data-difficulty="medium">🟡 Средний</button>
-        <button data-difficulty="hard">🔴 Сложный</button>
+    <div id="shopIcon" class="shop-icon">
+        <div>+</div>
     </div>
+    <div id="settingsMenu" class="settings-menu">
+        <button data-enemies="10">10 врагов</button>
+        <button data-enemies="15">15 врагов</button>
+        <button data-enemies="20">20 врагов</button>
+        <hr style="margin: 5px 0; border-color: #555;">
+        <button data-difficulty="easy">Простой</button>
+        <button data-difficulty="medium">Средний</button>
+        <button data-difficulty="hard">Сложный</button>
+    </div>
+    <div id="shopMenu" class="shop-menu"></div>
     <div id="gameOverlay" class="game-over">
         <div class="final-score-box">
             <div class="final-score-number" id="finalScoreNumber">0</div>
             <div class="final-record" id="finalRecordSpan"></div>
         </div>
     </div>
-    <!-- Кнопка экспорта монет (необязательно, поможет сохранить перед очисткой) -->
-    <button id="exportCoinsBtn" class="export-btn" style="display:none;">📤</button>
 </div>
 
 <script>
@@ -294,9 +306,10 @@
         const finalRecordSpan = document.getElementById('finalRecordSpan');
         const settingsIcon = document.getElementById('settingsIcon');
         const settingsMenu = document.getElementById('settingsMenu');
+        const shopIcon = document.getElementById('shopIcon');
+        const shopMenu = document.getElementById('shopMenu');
         const difficultyDot = document.getElementById('difficultyDot');
         const coinAmountSpan = document.getElementById('coinAmount');
-        const exportBtn = document.getElementById('exportCoinsBtn');
         
         // ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -----
         let PLAYER_X, PLAYER_Y;
@@ -312,11 +325,13 @@
         const PLAYER_SPIN_SPEED = 0.008;
         let playerFlash = 0;
         let playerDestroyed = false;
+        let shieldActive = false;
         
         let enemyFlash = [];
         
         let shells = [];
         let SHELL_RADIUS;
+        let SHELL_SPEED_BASE;
         let SHELL_SPEED;
         
         let enemies = [];
@@ -346,48 +361,77 @@
         let wave = 1;
         let penalty = 1;
         
-        // Система монет
         let coins = 0;
-        let totalKills = 0;      // общее количество сбитых врагов за всё время
-        let killsSinceLastBonus = 0; // для бонуса каждые 5 убийств
+        let totalKills = 0;
+        let killsSinceLastBonus = 0;
+        let currentSkin = 'default';
+        let ownedSkins = ['default'];
+        
+        let ability_shield = false;
+        let ability_fastBullet = false;
+        let ability_pierce = false;
+        let ability_ricochet = false;
         
         const STAR_SPEED = 0.64;
         const enemyColorHues = [120, 0, 60, 30, 200, 270];
         let currentEnemyHue = 120;
         
-        // Загрузка монет и статы с защитой от повреждённых данных
+        const skinsList = [
+            { id: 'default', name: 'Обычный', price: 0 },
+            { id: 'shield', name: 'Щит', price: 500 },
+            { id: 'fast', name: 'Ускоренный снаряд', price: 800 },
+            { id: 'pierce', name: 'Пробивной снаряд', price: 1000 },
+            { id: 'ricochet', name: 'Рикошет', price: 1000 }
+        ];
+        
         function loadStats() {
             try {
                 const savedCoins = localStorage.getItem('ufo_coins');
-                if (savedCoins !== null) {
-                    let c = parseInt(savedCoins, 10);
-                    coins = isNaN(c) ? 0 : c;
-                } else {
-                    coins = 0;
-                }
+                coins = (savedCoins !== null && !isNaN(parseInt(savedCoins,10))) ? parseInt(savedCoins,10) : 0;
                 const savedTotalKills = localStorage.getItem('ufo_total_kills');
-                if (savedTotalKills !== null) {
-                    let k = parseInt(savedTotalKills, 10);
-                    totalKills = isNaN(k) ? 0 : k;
-                } else {
-                    totalKills = 0;
-                }
-                // Восстанавливаем killsSinceLastBonus из totalKills
+                totalKills = (savedTotalKills !== null && !isNaN(parseInt(savedTotalKills,10))) ? parseInt(savedTotalKills,10) : 0;
                 killsSinceLastBonus = totalKills % 5;
+                const savedSkin = localStorage.getItem('ufo_skin');
+                if (savedSkin !== null && skinsList.some(s => s.id === savedSkin)) {
+                    currentSkin = savedSkin;
+                } else {
+                    currentSkin = 'default';
+                }
+                const savedOwned = localStorage.getItem('ufo_owned_skins');
+                if (savedOwned !== null) {
+                    try {
+                        const parsed = JSON.parse(savedOwned);
+                        if (Array.isArray(parsed)) ownedSkins = parsed;
+                        else ownedSkins = ['default'];
+                    } catch(e) { ownedSkins = ['default']; }
+                } else {
+                    ownedSkins = ['default'];
+                }
+                if (!ownedSkins.includes('default')) ownedSkins.push('default');
             } catch(e) {
-                console.warn("Failed to load stats", e);
-                coins = 0;
-                totalKills = 0;
-                killsSinceLastBonus = 0;
+                coins = 0; totalKills = 0; killsSinceLastBonus = 0; currentSkin = 'default'; ownedSkins = ['default'];
             }
             coinAmountSpan.innerText = coins;
+            updateShopMenu();
         }
         
         function saveStats() {
             try {
                 localStorage.setItem('ufo_coins', coins);
                 localStorage.setItem('ufo_total_kills', totalKills);
+                localStorage.setItem('ufo_skin', currentSkin);
+                localStorage.setItem('ufo_owned_skins', JSON.stringify(ownedSkins));
             } catch(e) {}
+        }
+        
+        function updateAbilities() {
+            ability_shield = (currentSkin === 'shield');
+            ability_fastBullet = (currentSkin === 'fast');
+            ability_pierce = (currentSkin === 'pierce');
+            ability_ricochet = (currentSkin === 'ricochet');
+            if (ability_shield) shieldActive = true;
+            else shieldActive = false;
+            SHELL_SPEED = SHELL_SPEED_BASE * (ability_fastBullet ? 1.6 : 1.0);
         }
         
         function addCoins(amount) {
@@ -395,17 +439,60 @@
                 coins += amount;
                 coinAmountSpan.innerText = coins;
                 saveStats();
+                updateShopMenu();
             }
+        }
+        
+        function buySkin(skinId, price) {
+            if (ownedSkins.includes(skinId)) {
+                if (currentSkin !== skinId) {
+                    currentSkin = skinId;
+                    saveStats();
+                    updateAbilities();
+                    updateShopMenu();
+                    alert(`Скин "${skinsList.find(s=>s.id===skinId).name}" активирован!`);
+                } else {
+                    alert('Этот скин уже активен');
+                }
+            } else if (coins >= price) {
+                coins -= price;
+                ownedSkins.push(skinId);
+                currentSkin = skinId;
+                coinAmountSpan.innerText = coins;
+                saveStats();
+                updateAbilities();
+                updateShopMenu();
+                alert(`Скин "${skinsList.find(s=>s.id===skinId).name}" куплен и активирован!`);
+            } else {
+                alert('Недостаточно монет');
+            }
+        }
+        
+        function updateShopMenu() {
+            shopMenu.innerHTML = '';
+            skinsList.forEach(skin => {
+                const isOwned = ownedSkins.includes(skin.id);
+                const isCurrent = (currentSkin === skin.id);
+                let color = '#ffffff';
+                if (isCurrent) color = '#88ff88';
+                else if (isOwned) color = '#ffcc44';
+                const priceText = skin.price > 0 ? `<span class="price">${skin.price}★</span>` : '';
+                const btn = document.createElement('button');
+                btn.style.color = color;
+                btn.innerHTML = `${skin.name} ${priceText}`;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    buySkin(skin.id, skin.price);
+                    shopMenu.classList.remove('show');
+                });
+                shopMenu.appendChild(btn);
+            });
         }
         
         function onEnemyKilled() {
             totalKills++;
             killsSinceLastBonus++;
-            // 15% шанс получить монету
-            if (Math.random() < 0.15) {
-                addCoins(1);
-            }
-            // Бонус за каждые 5 убийств
+            if (Math.random() < 0.15) addCoins(1);
             if (killsSinceLastBonus >= 5) {
                 addCoins(1);
                 killsSinceLastBonus -= 5;
@@ -416,36 +503,23 @@
         function awardWaveBonus() {
             let bonus = 0;
             const isHard = (currentDifficulty === 'hard');
-            if (ENEMY_COUNT === 10) {
-                bonus = isHard ? 7 : 5;
-            } else if (ENEMY_COUNT === 15) {
-                bonus = isHard ? 10 : 7;
-            } else if (ENEMY_COUNT === 20) {
-                bonus = isHard ? 15 : 10;
-            }
+            if (ENEMY_COUNT === 10) bonus = isHard ? 7 : 5;
+            else if (ENEMY_COUNT === 15) bonus = isHard ? 10 : 7;
+            else if (ENEMY_COUNT === 20) bonus = isHard ? 15 : 10;
             addCoins(bonus);
         }
         
         function loadRecord() {
             try {
                 const saved = localStorage.getItem('ufo_shooter_record');
-                if (saved !== null) {
-                    let r = parseInt(saved, 10);
-                    record = isNaN(r) ? 0 : r;
-                } else {
-                    record = 0;
-                }
-            } catch(e) {
-                record = 0;
-            }
+                record = (saved !== null && !isNaN(parseInt(saved,10))) ? parseInt(saved,10) : 0;
+            } catch(e) { record = 0; }
         }
         
         function saveRecord() {
             if (score > record) {
                 record = score;
-                try {
-                    localStorage.setItem('ufo_shooter_record', record);
-                } catch(e) {}
+                try { localStorage.setItem('ufo_shooter_record', record); } catch(e) {}
             }
         }
         
@@ -453,9 +527,7 @@
             scoreSpan.innerText = score;
             if (score > record) {
                 record = score;
-                try {
-                    localStorage.setItem('ufo_shooter_record', record);
-                } catch(e) {}
+                try { localStorage.setItem('ufo_shooter_record', record); } catch(e) {}
             }
             scoreSpan.style.color = score < 0 ? '#ff6666' : '#ffd966';
         }
@@ -463,7 +535,7 @@
         function showGameOver() {
             if (!gameActive && winFlag) {
                 finalScoreNumberSpan.innerText = score;
-                finalRecordSpan.innerText = `🏆 Рекорд: ${record}`;
+                finalRecordSpan.innerText = `Рекорд: ${record}`;
                 gameOverlay.classList.add('show');
             } else {
                 gameOverlay.classList.remove('show');
@@ -486,14 +558,20 @@
             }, 400);
         }
         
+        function handlePlayerHit() {
+            if (!gameActive) return;
+            if (ability_shield && shieldActive) {
+                shieldActive = false;
+                return;
+            }
+            scheduleGameOver();
+        }
+        
         function createIncomingWave() {
             const newEnemies = [];
             const currentSpeed = ENEMY_BASE_SPEED * ENEMY_SPEED_MULTIPLIER;
-            
             for(let i = 0; i < ENEMY_COUNT; i++) {
-                let startX, startY;
-                let targetX, targetY;
-                
+                let startX, startY, targetX, targetY;
                 if (currentOrientation === 'landscape') {
                     startX = canvasWidth + ENEMY_RADIUS + 150 + Math.random() * 200;
                     startY = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
@@ -505,18 +583,10 @@
                     targetX = startX;
                     targetY = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
                 }
-                
-                let dx = targetX - startX;
-                let dy = targetY - startY;
+                let dx = targetX - startX, dy = targetY - startY;
                 const len = Math.hypot(dx, dy);
-                if (len > 0.01) {
-                    dx = dx / len * currentSpeed;
-                    dy = dy / len * currentSpeed;
-                } else {
-                    dx = currentSpeed * (Math.random() > 0.5 ? 1 : -1);
-                    dy = currentSpeed * (Math.random() > 0.5 ? 1 : -1);
-                }
-                
+                if (len > 0.01) { dx = dx / len * currentSpeed; dy = dy / len * currentSpeed; }
+                else { dx = currentSpeed * (Math.random() > 0.5 ? 1 : -1); dy = currentSpeed * (Math.random() > 0.5 ? 1 : -1); }
                 newEnemies.push({
                     x: startX, y: startY, r: ENEMY_RADIUS,
                     vx: dx, vy: dy,
@@ -529,9 +599,7 @@
             return newEnemies;
         }
         
-        function createWave() {
-            return createIncomingWave();
-        }
+        function createWave() { return createIncomingWave(); }
         
         function nextWave() {
             if (!gameActive) return;
@@ -547,9 +615,7 @@
         }
         
         function checkWin() {
-            if (enemies.length === 0 && !winFlag && gameActive) {
-                nextWave();
-            }
+            if (enemies.length === 0 && !winFlag && gameActive) nextWave();
         }
         
         function createExplosion(x, y, isPlayer = false) {
@@ -572,191 +638,116 @@
         }
         
         function recalcDimensions() {
-            canvasWidth = canvas.width;
-            canvasHeight = canvas.height;
+            canvasWidth = canvas.width; canvasHeight = canvas.height;
             currentOrientation = canvasWidth > canvasHeight ? 'landscape' : 'portrait';
             const baseSize = Math.min(canvasWidth, canvasHeight);
             PLAYER_RADIUS = baseSize * 0.045;
             ENEMY_RADIUS = baseSize * 0.04;
             FOLLOW_RADIUS = Math.max(canvasWidth, canvasHeight) * 0.25;
             SHELL_RADIUS = baseSize * 0.012;
-            SHELL_SPEED = baseSize * 0.014;
+            SHELL_SPEED_BASE = baseSize * 0.014;
+            SHELL_SPEED = SHELL_SPEED_BASE * (ability_fastBullet ? 1.6 : 1.0);
             ENEMY_BASE_SPEED = baseSize * 0.0022;
-            
             if (currentOrientation === 'landscape') {
-                PLAYER_X = canvasWidth * 0.12;
-                PLAYER_Y = canvasHeight * 0.5;
-                ENEMY_MIN_X = canvasWidth * 0.6;
-                ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2 - 10;
-                ENEMY_MIN_Y = ENEMY_RADIUS * 2;
-                ENEMY_MAX_Y = canvasHeight - ENEMY_RADIUS*2;
-                resetBtn.style.bottom = '16px';
-                resetBtn.style.left = '16px';
-                resetBtn.style.right = 'auto';
-                resetBtn.style.top = 'auto';
+                PLAYER_X = canvasWidth * 0.12; PLAYER_Y = canvasHeight * 0.5;
+                ENEMY_MIN_X = canvasWidth * 0.6; ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2 - 10;
+                ENEMY_MIN_Y = ENEMY_RADIUS * 2; ENEMY_MAX_Y = canvasHeight - ENEMY_RADIUS*2;
+                resetBtn.style.bottom = '16px'; resetBtn.style.left = '16px'; resetBtn.style.right = 'auto'; resetBtn.style.top = 'auto';
             } else {
-                PLAYER_X = canvasWidth * 0.5;
-                PLAYER_Y = canvasHeight - canvasHeight * 0.12;
-                ENEMY_MIN_X = ENEMY_RADIUS * 2;
-                ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2;
-                ENEMY_MIN_Y = ENEMY_RADIUS * 2;
-                ENEMY_MAX_Y = canvasHeight * 0.4;
-                resetBtn.style.bottom = '16px';
-                resetBtn.style.right = '16px';
-                resetBtn.style.left = 'auto';
-                resetBtn.style.top = 'auto';
+                PLAYER_X = canvasWidth * 0.5; PLAYER_Y = canvasHeight - canvasHeight * 0.12;
+                ENEMY_MIN_X = ENEMY_RADIUS * 2; ENEMY_MAX_X = canvasWidth - ENEMY_RADIUS*2;
+                ENEMY_MIN_Y = ENEMY_RADIUS * 2; ENEMY_MAX_Y = canvasHeight * 0.4;
+                resetBtn.style.bottom = '16px'; resetBtn.style.right = '16px'; resetBtn.style.left = 'auto'; resetBtn.style.top = 'auto';
             }
             turretAngle = currentOrientation === 'landscape' ? 0.2 : -Math.PI/2;
         }
         
         function normalizeSpeed(vx, vy, targetSpeed) {
             const len = Math.hypot(vx, vy);
-            if (len > 0.01) {
-                return { vx: (vx / len) * targetSpeed, vy: (vy / len) * targetSpeed };
-            }
+            if (len > 0.01) return { vx: (vx/len)*targetSpeed, vy: (vy/len)*targetSpeed };
             const angle = Math.random() * Math.PI * 2;
-            return { vx: Math.cos(angle) * targetSpeed, vy: Math.sin(angle) * targetSpeed };
+            return { vx: Math.cos(angle)*targetSpeed, vy: Math.sin(angle)*targetSpeed };
         }
         
         function generateStars() {
             stars = [];
-            for(let i = 0; i < 500; i++) {
-                stars.push({
-                    x: Math.random() * canvasWidth,
-                    y: Math.random() * canvasHeight,
-                    radius: Math.random() * 2 + 0.5,
-                    alpha: Math.random() * 0.7 + 0.3
-                });
-            }
+            for(let i=0;i<500;i++) stars.push({ x: Math.random()*canvasWidth, y: Math.random()*canvasHeight, radius: Math.random()*2+0.5, alpha: Math.random()*0.7+0.3 });
         }
-        
         function updateStars() {
-            for(let s of stars) {
-                s.y += STAR_SPEED;
-                if (s.y > canvasHeight) {
-                    s.y = 0;
-                    s.x = Math.random() * canvasWidth;
-                    s.alpha = Math.random() * 0.7 + 0.3;
-                }
-            }
+            for(let s of stars) { s.y += STAR_SPEED; if(s.y > canvasHeight) { s.y = 0; s.x = Math.random()*canvasWidth; s.alpha = Math.random()*0.7+0.3; } }
         }
-        
-        function randomEnemyColor() {
-            const randomIndex = Math.floor(Math.random() * enemyColorHues.length);
-            currentEnemyHue = enemyColorHues[randomIndex];
-        }
+        function randomEnemyColor() { currentEnemyHue = enemyColorHues[Math.floor(Math.random()*enemyColorHues.length)]; }
         
         function resetGame() {
             if (gameOverDelayTimer) clearTimeout(gameOverDelayTimer);
             pendingGameOver = false;
             playerDestroyed = false;
-            wave = 1;
-            penalty = 1;
+            wave = 1; penalty = 1;
+            if (ability_shield) shieldActive = true;
             randomEnemyColor();
             enemies = createWave();
-            shells = [];
-            particles = [];
-            shrapnel = [];
-            enemyBullets = [];
-            enemyFlash = [];
-            score = 0;
-            updateScoreUI();
-            gameActive = true;
-            winFlag = false;
+            shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
+            score = 0; updateScoreUI();
+            gameActive = true; winFlag = false;
             generateStars();
-            playerSpinAngle = 0;
-            comets = [];
-            cometSpawnTimer = 30;
-            playerFlash = 0;
-            enemyShootTimer = 0;
+            playerSpinAngle = 0; comets = []; cometSpawnTimer = 30; playerFlash = 0; enemyShootTimer = 0;
             showGameOver();
         }
         
         function shootAt(x, y) {
             if (!gameActive || playerDestroyed) return;
-            const dx = x - PLAYER_X;
-            const dy = y - PLAYER_Y;
+            const dx = x - PLAYER_X, dy = y - PLAYER_Y;
             const angle = Math.atan2(dy, dx);
             const vx = Math.cos(angle) * SHELL_SPEED;
             const vy = Math.sin(angle) * SHELL_SPEED;
-            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS });
+            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS, hits: 0, maxHits: ability_pierce ? 1 : (ability_ricochet ? 3 : 1) });
             playerFlash = 5;
         }
         
         function onPointerDown(event) {
             if (!gameActive) return;
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvasWidth / rect.width;
-            const scaleY = canvasHeight / rect.height;
+            const scaleX = canvasWidth / rect.width, scaleY = canvasHeight / rect.height;
             let clientX, clientY;
-            if (event.touches) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-                event.preventDefault();
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            let canvasX = (clientX - rect.left) * scaleX;
-            let canvasY = (clientY - rect.top) * scaleY;
-            canvasX = Math.min(Math.max(canvasX, 0), canvasWidth);
-            canvasY = Math.min(Math.max(canvasY, 0), canvasHeight);
+            if (event.touches) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; event.preventDefault(); }
+            else { clientX = event.clientX; clientY = event.clientY; }
+            let canvasX = (clientX - rect.left) * scaleX, canvasY = (clientY - rect.top) * scaleY;
+            canvasX = Math.min(Math.max(canvasX,0), canvasWidth); canvasY = Math.min(Math.max(canvasY,0), canvasHeight);
             shootAt(canvasX, canvasY);
         }
         
         function updateAimFromPointer(event) {
             if (!gameActive) return;
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvasWidth / rect.width;
-            const scaleY = canvasHeight / rect.height;
+            const scaleX = canvasWidth / rect.width, scaleY = canvasHeight / rect.height;
             let clientX, clientY;
-            if (event.touches) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            let mx = (clientX - rect.left) * scaleX;
-            let my = (clientY - rect.top) * scaleY;
-            mx = Math.min(Math.max(mx,0), canvasWidth);
-            my = Math.min(Math.max(my,0), canvasHeight);
-            const dx = mx - PLAYER_X;
-            const dy = my - PLAYER_Y;
-            if (Math.hypot(dx, dy) <= FOLLOW_RADIUS) {
-                turretAngle = Math.atan2(dy, dx);
-            }
+            if (event.touches) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; }
+            else { clientX = event.clientX; clientY = event.clientY; }
+            let mx = (clientX - rect.left) * scaleX, my = (clientY - rect.top) * scaleY;
+            mx = Math.min(Math.max(mx,0), canvasWidth); my = Math.min(Math.max(my,0), canvasHeight);
+            const dx = mx - PLAYER_X, dy = my - PLAYER_Y;
+            if (Math.hypot(dx,dy) <= FOLLOW_RADIUS) turretAngle = Math.atan2(dy, dx);
         }
         
         function enemyShoot(enemy, idx) {
             const angle = Math.random() * Math.PI * 2;
-            const vx = Math.cos(angle) * SHELL_SPEED * 0.8;
-            const vy = Math.sin(angle) * SHELL_SPEED * 0.8;
-            enemyBullets.push({
-                x: enemy.x, y: enemy.y,
-                vx: vx, vy: vy,
-                radius: SHELL_RADIUS * 0.8,
-                life: 300
-            });
+            const vx = Math.cos(angle) * SHELL_SPEED_BASE * 0.8;
+            const vy = Math.sin(angle) * SHELL_SPEED_BASE * 0.8;
+            enemyBullets.push({ x: enemy.x, y: enemy.y, vx: vx, vy: vy, radius: SHELL_RADIUS * 0.8, life: 300 });
             enemyFlash.push({ index: idx, timer: 8 });
         }
         
         function updateEnemyBullets() {
             for(let i=0; i<enemyBullets.length; i++) {
                 const b = enemyBullets[i];
-                b.x += b.vx;
-                b.y += b.vy;
-                b.life--;
-                if(b.x + b.radius < 0 || b.x - b.radius > canvasWidth || b.y + b.radius < 0 || b.y - b.radius > canvasHeight || b.life <= 0) {
-                    enemyBullets.splice(i,1);
-                    i--;
-                    continue;
+                b.x += b.vx; b.y += b.vy; b.life--;
+                if(b.x+b.radius<0 || b.x-b.radius>canvasWidth || b.y+b.radius<0 || b.y-b.radius>canvasHeight || b.life<=0) {
+                    enemyBullets.splice(i,1); i--; continue;
                 }
-                const dx = b.x - PLAYER_X;
-                const dy = b.y - PLAYER_Y;
-                if(Math.hypot(dx, dy) < PLAYER_RADIUS + b.radius) {
+                const dx = b.x - PLAYER_X, dy = b.y - PLAYER_Y;
+                if (Math.hypot(dx, dy) < PLAYER_RADIUS + b.radius) {
                     if (gameActive && !playerDestroyed) {
-                        scheduleGameOver();
+                        handlePlayerHit();
                         enemyBullets = [];
                         break;
                     }
@@ -767,10 +758,7 @@
         function updateEnemyFlash() {
             for(let i=0; i<enemyFlash.length; i++) {
                 enemyFlash[i].timer--;
-                if(enemyFlash[i].timer <= 0) {
-                    enemyFlash.splice(i,1);
-                    i--;
-                }
+                if(enemyFlash[i].timer <= 0) { enemyFlash.splice(i,1); i--; }
             }
         }
         
@@ -779,14 +767,12 @@
             const enemy = enemies[idx];
             if (!enemy) return false;
             enemyFlash = enemyFlash.filter(f => f.index !== idx);
-            for(let f of enemyFlash) {
-                if(f.index > idx) f.index--;
-            }
+            for(let f of enemyFlash) if(f.index > idx) f.index--;
             createExplosion(enemy.x, enemy.y);
             enemies.splice(idx, 1);
-            if(addScore) { 
-                score++; 
-                updateScoreUI(); 
+            if (addScore) {
+                score++;
+                updateScoreUI();
                 onEnemyKilled();
             }
             checkWin();
@@ -796,36 +782,31 @@
         function updateShells() {
             for(let i=shells.length-1; i>=0; i--) {
                 const s = shells[i];
-                s.x += s.vx;
-                s.y += s.vy;
+                s.x += s.vx; s.y += s.vy;
                 if(s.x+SHELL_RADIUS<0 || s.x-SHELL_RADIUS>canvasWidth || s.y+SHELL_RADIUS<0 || s.y-SHELL_RADIUS>canvasHeight) {
                     shells.splice(i,1);
                     if(gameActive && !playerDestroyed) {
-                        if (score === 0) {
-                            gameActive = false;
-                            winFlag = true;
-                            showGameOver();
-                            return;
-                        } else {
-                            let newScore = score - penalty;
-                            if (newScore < 0) newScore = 0;
-                            score = newScore;
-                            updateScoreUI();
-                        }
+                        if (score === 0) { gameActive = false; winFlag = true; showGameOver(); return; }
+                        else { let newScore = score - penalty; if(newScore<0) newScore=0; score=newScore; updateScoreUI(); }
                     }
                     continue;
                 }
                 let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) {
-                        hitIndex = j;
-                        break;
-                    }
+                    if(Math.hypot(s.x - e.x, s.y - e.y) < e.r + SHELL_RADIUS) { hitIndex = j; break; }
                 }
                 if(hitIndex !== -1) {
                     destroyEnemy(hitIndex, true);
-                    shells.splice(i,1);
+                    s.hits++;
+                    if (s.hits >= s.maxHits) {
+                        shells.splice(i,1);
+                    } else if (ability_ricochet) {
+                        const newAngle = Math.atan2(s.vy, s.vx) + (Math.random() - 0.5) * Math.PI;
+                        const speed = Math.hypot(s.vx, s.vy);
+                        s.vx = Math.cos(newAngle) * speed;
+                        s.vy = Math.sin(newAngle) * speed;
+                    }
                 }
             }
         }
@@ -833,27 +814,14 @@
         function updateShrapnel() {
             for(let i=0; i<shrapnel.length; i++) {
                 const sh = shrapnel[i];
-                sh.x += sh.vx;
-                sh.y += sh.vy;
-                sh.life--;
-                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) {
-                    shrapnel.splice(i,1);
-                    i--;
-                    continue;
-                }
+                sh.x += sh.vx; sh.y += sh.vy; sh.life--;
+                if(sh.life<=0 || sh.x<-50 || sh.x>canvasWidth+50 || sh.y<-50 || sh.y>canvasHeight+50) { shrapnel.splice(i,1); i--; continue; }
                 let hitIndex = -1;
                 for(let j=0; j<enemies.length; j++) {
                     const e = enemies[j];
-                    if(Math.hypot(sh.x - e.x, sh.y - e.y) < e.r + sh.radius) {
-                        hitIndex = j;
-                        break;
-                    }
+                    if(Math.hypot(sh.x - e.x, sh.y - e.y) < e.r + sh.radius) { hitIndex = j; break; }
                 }
-                if(hitIndex !== -1) {
-                    destroyEnemy(hitIndex, true);
-                    shrapnel.splice(i,1);
-                    i--;
-                }
+                if(hitIndex !== -1) { destroyEnemy(hitIndex, true); shrapnel.splice(i,1); i--; }
             }
         }
         
@@ -869,9 +837,7 @@
             const targetSpeed = ENEMY_BASE_SPEED * ENEMY_SPEED_MULTIPLIER;
             for(let e of enemies) {
                 e.spinAngle += e.spinSpeed;
-                e.x += e.vx;
-                e.y += e.vy;
-                
+                e.x += e.vx; e.y += e.vy;
                 if (e.incoming) {
                     const inside = (e.x >= ENEMY_MIN_X && e.x <= ENEMY_MAX_X && e.y >= ENEMY_MIN_Y && e.y <= ENEMY_MAX_Y);
                     if (inside) {
@@ -879,33 +845,19 @@
                         let vx = (Math.random() - 0.5) * targetSpeed * 1.6;
                         let vy = (Math.random() - 0.5) * targetSpeed * 1.6;
                         const len = Math.hypot(vx, vy);
-                        if (len > 0.01) {
-                            vx = vx / len * targetSpeed;
-                            vy = vy / len * targetSpeed;
-                        } else {
-                            vx = targetSpeed * (Math.random() > 0.5 ? 1 : -1);
-                            vy = targetSpeed * (Math.random() > 0.5 ? 1 : -1);
-                        }
-                        e.vx = vx;
-                        e.vy = vy;
-                    } else {
-                        if (e.x < ENEMY_MIN_X - 200 || e.x > ENEMY_MAX_X + 200 || e.y < ENEMY_MIN_Y - 200 || e.y > ENEMY_MAX_Y + 200) {
-                            e.x = ENEMY_MIN_X + Math.random() * (ENEMY_MAX_X - ENEMY_MIN_X);
-                            e.y = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
-                            e.incoming = false;
-                            let vx = (Math.random() - 0.5) * targetSpeed * 1.6;
-                            let vy = (Math.random() - 0.5) * targetSpeed * 1.6;
-                            const len = Math.hypot(vx, vy);
-                            if (len > 0.01) {
-                                vx = vx / len * targetSpeed;
-                                vy = vy / len * targetSpeed;
-                            } else {
-                                vx = targetSpeed * (Math.random() > 0.5 ? 1 : -1);
-                                vy = targetSpeed * (Math.random() > 0.5 ? 1 : -1);
-                            }
-                            e.vx = vx;
-                            e.vy = vy;
-                        }
+                        if (len > 0.01) { vx = vx/len * targetSpeed; vy = vy/len * targetSpeed; }
+                        else { vx = targetSpeed * (Math.random()>0.5?1:-1); vy = targetSpeed * (Math.random()>0.5?1:-1); }
+                        e.vx = vx; e.vy = vy;
+                    } else if (e.x < ENEMY_MIN_X-200 || e.x > ENEMY_MAX_X+200 || e.y < ENEMY_MIN_Y-200 || e.y > ENEMY_MAX_Y+200) {
+                        e.x = ENEMY_MIN_X + Math.random() * (ENEMY_MAX_X - ENEMY_MIN_X);
+                        e.y = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
+                        e.incoming = false;
+                        let vx = (Math.random() - 0.5) * targetSpeed * 1.6;
+                        let vy = (Math.random() - 0.5) * targetSpeed * 1.6;
+                        const len = Math.hypot(vx, vy);
+                        if (len > 0.01) { vx = vx/len * targetSpeed; vy = vy/len * targetSpeed; }
+                        else { vx = targetSpeed * (Math.random()>0.5?1:-1); vy = targetSpeed * (Math.random()>0.5?1:-1); }
+                        e.vx = vx; e.vy = vy;
                     }
                 } else {
                     if(e.x - e.r < ENEMY_MIN_X) { e.x = ENEMY_MIN_X + e.r; e.vx = -e.vx; }
@@ -913,11 +865,9 @@
                     if(e.y - e.r < ENEMY_MIN_Y) { e.y = ENEMY_MIN_Y + e.r; e.vy = -e.vy; }
                     if(e.y + e.r > ENEMY_MAX_Y) { e.y = ENEMY_MAX_Y - e.r; e.vy = -e.vy; }
                     const norm = normalizeSpeed(e.vx, e.vy, targetSpeed);
-                    e.vx = norm.vx;
-                    e.vy = norm.vy;
+                    e.vx = norm.vx; e.vy = norm.vy;
                 }
             }
-            
             for(let i=0; i<enemies.length; i++) {
                 for(let j=i+1; j<enemies.length; j++) {
                     const a=enemies[i], b=enemies[j];
@@ -936,16 +886,15 @@
                         const normB = normalizeSpeed(b.vx, b.vy, targetSpeed);
                         a.vx = normA.vx; a.vy = normA.vy;
                         b.vx = normB.vx; b.vy = normB.vy;
-                        a.x=Math.min(Math.max(a.x, ENEMY_MIN_X+a.r), ENEMY_MAX_X-a.r);
-                        a.y=Math.min(Math.max(a.y, ENEMY_MIN_Y+a.r), ENEMY_MAX_Y-a.r);
-                        b.x=Math.min(Math.max(b.x, ENEMY_MIN_X+b.r), ENEMY_MAX_X-b.r);
-                        b.y=Math.min(Math.max(b.y, ENEMY_MIN_Y+b.r), ENEMY_MAX_Y-b.r);
+                        a.x = Math.min(Math.max(a.x, ENEMY_MIN_X+a.r), ENEMY_MAX_X-a.r);
+                        a.y = Math.min(Math.max(a.y, ENEMY_MIN_Y+a.r), ENEMY_MAX_Y-a.r);
+                        b.x = Math.min(Math.max(b.x, ENEMY_MIN_X+b.r), ENEMY_MAX_X-b.r);
+                        b.y = Math.min(Math.max(b.y, ENEMY_MIN_Y+b.r), ENEMY_MAX_Y-b.r);
                     }
                 }
             }
         }
         
-        // ----- КОМЕТЫ (без изменений) -----
         function spawnComet() {
             const side = Math.floor(Math.random() * 4);
             let x,y,vx,vy;
@@ -958,14 +907,8 @@
             else if(side===1) { x=canvasWidth+10; y=Math.random()*canvasHeight; vx=-speed; vy=(Math.random()-0.5)*1.5*(isFast?2:1); }
             else if(side===2) { x=Math.random()*canvasWidth; y=-10; vx=(Math.random()-0.5)*1.5*(isFast?2:1); vy=speed; }
             else { x=Math.random()*canvasWidth; y=canvasHeight+10; vx=(Math.random()-0.5)*1.5*(isFast?2:1); vy=-speed; }
-            comets.push({
-                x,y,vx,vy, trail:[],
-                isFast,
-                size: (isFast?3.5:2.5) * (Math.min(canvasWidth,canvasHeight)*0.004),
-                glow: isFast ? "#ffaa66" : "#ffe0a0"
-            });
+            comets.push({ x,y,vx,vy, trail:[], isFast, size: (isFast?3.5:2.5)*(Math.min(canvasWidth,canvasHeight)*0.004), glow: isFast?"#ffaa66":"#ffe0a0" });
         }
-        
         function updateComets() {
             if(cometSpawnTimer<=0) { spawnComet(); cometSpawnTimer = COMET_SPAWN_DELAY + Math.random()*120; }
             else cometSpawnTimer--;
@@ -977,7 +920,6 @@
                 if(c.x<-150 || c.x>canvasWidth+150 || c.y<-150 || c.y>canvasHeight+150) { comets.splice(i,1); i--; }
             }
         }
-        
         function drawComets() {
             for(let c of comets) {
                 for(let j=0; j<c.trail.length; j++) {
@@ -997,33 +939,18 @@
             }
         }
         
-        function drawStars() {
-            for(let s of stars) {
-                ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
-                ctx.fillStyle = `rgba(255,240,200,${s.alpha})`; ctx.fill();
-            }
-        }
-        
+        function drawStars() { for(let s of stars) { ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(255,240,200,${s.alpha})`; ctx.fill(); } }
         function drawBackground() {
             const grad = ctx.createLinearGradient(0,0,0,canvasHeight);
             grad.addColorStop(0,"#0a1018"); grad.addColorStop(1,"#050a10");
             ctx.fillStyle = grad; ctx.fillRect(0,0,canvasWidth,canvasHeight);
             drawStars(); drawComets();
         }
-        
         function drawAimZone() {
-            ctx.save();
-            ctx.globalAlpha = 0.15;
-            ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2);
-            ctx.fillStyle = "#88ddff"; ctx.fill();
-            ctx.globalAlpha = 0.5;
-            ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS-2, 0, Math.PI*2);
-            ctx.strokeStyle = "#66ccff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.save(); ctx.globalAlpha=0.15; ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2); ctx.fillStyle="#88ddff"; ctx.fill();
+            ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS-2, 0, Math.PI*2); ctx.strokeStyle="#66ccff"; ctx.lineWidth=2; ctx.stroke();
             ctx.restore();
-            ctx.setLineDash([6,10]);
-            ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2);
-            ctx.strokeStyle = "#aaffdd"; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.setLineDash([6,10]); ctx.beginPath(); ctx.arc(PLAYER_X, PLAYER_Y, FOLLOW_RADIUS, 0, Math.PI*2); ctx.strokeStyle="#aaffdd"; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
         }
         
         function drawPlayer() {
@@ -1042,15 +969,50 @@
                 playerFlash--;
             }
             ctx.shadowBlur = 10; ctx.shadowColor = "#c0c0c0";
-            const grad = ctx.createRadialGradient(-6,-6,5,0,0,PLAYER_RADIUS);
-            grad.addColorStop(0,"#f8f8fc"); grad.addColorStop(0.5,"#b0b8c0"); grad.addColorStop(1,"#708090");
-            ctx.fillStyle = grad;
-            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fillStyle = "#d0d8e0"; ctx.fill();
-            ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill();
-            ctx.stroke();
+            
+            if (currentSkin === 'shield') {
+                ctx.fillStyle = "#3388ff";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#2266cc";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#44aaff";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+                if (shieldActive) {
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+4,0,Math.PI*2);
+                    ctx.fillStyle = "rgba(100,200,255,0.3)";
+                    ctx.fill();
+                    ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+4,0,Math.PI*2);
+                    ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
+                }
+            } else if (currentSkin === 'fast') {
+                ctx.fillStyle = "#222";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#444";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#666";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+            } else if (currentSkin === 'pierce') {
+                ctx.fillStyle = "#8b5a2b";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#6b4a1b";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#aa7a3b";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+            } else if (currentSkin === 'ricochet') {
+                ctx.fillStyle = "#e0e0e0";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#c0c0c0";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
+            } else {
+                const grad = ctx.createRadialGradient(-6,-6,5,0,0,PLAYER_RADIUS);
+                grad.addColorStop(0,"#f8f8fc"); grad.addColorStop(0.5,"#b0b8c0"); grad.addColorStop(1,"#708090");
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fillStyle = "#d0d8e0"; ctx.fill();
+                ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fillStyle = "#8898a0"; ctx.fill(); ctx.stroke();
+            }
             for(let i=0;i<16;i++) {
                 const angle = (i/16)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-3), y = Math.sin(angle)*(PLAYER_RADIUS-3);
@@ -1060,19 +1022,14 @@
             }
             const cockpitR = PLAYER_RADIUS * 0.55;
             ctx.beginPath(); ctx.arc(0,0, cockpitR, 0, Math.PI*2); ctx.fillStyle = "#7ec8e3"; ctx.fill();
-            ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0, cockpitR-2, 0, Math.PI*2); ctx.fillStyle = "#9bdaf5"; ctx.fill();
-            ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0, cockpitR-4, 0, Math.PI*2); ctx.fillStyle = "#b0e4ff"; ctx.fill();
-            ctx.stroke();
+            ctx.stroke(); ctx.beginPath(); ctx.arc(0,0, cockpitR-2, 0, Math.PI*2); ctx.fillStyle = "#9bdaf5"; ctx.fill();
+            ctx.stroke(); ctx.beginPath(); ctx.arc(0,0, cockpitR-4, 0, Math.PI*2); ctx.fillStyle = "#b0e4ff"; ctx.fill(); ctx.stroke();
             const blinkX = -cockpitR*0.3, blinkY = -cockpitR*0.3;
             ctx.beginPath(); ctx.ellipse(blinkX, blinkY, cockpitR*0.3, cockpitR*0.2, 0, 0, Math.PI*2); ctx.fillStyle = "#ffffffcc"; ctx.fill();
             ctx.beginPath(); ctx.ellipse(blinkX-2, blinkY-2, cockpitR*0.15, cockpitR*0.12, 0, 0, Math.PI*2); ctx.fillStyle = "#ffffff"; ctx.fill();
             const antenaH = PLAYER_RADIUS * 0.25;
-            ctx.beginPath(); ctx.moveTo(0, -cockpitR); ctx.lineTo(-3, -cockpitR - antenaH); ctx.lineTo(3, -cockpitR - antenaH); ctx.fillStyle = "#c0c8d0"; ctx.fill();
-            ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, -cockpitR - antenaH, 2, 0, Math.PI*2); ctx.fillStyle = "#ffaa66"; ctx.fill();
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -cockpitR); ctx.lineTo(-3, -cockpitR - antenaH); ctx.lineTo(3, -cockpitR - antenaH); ctx.fillStyle = "#c0c8d0"; ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, -cockpitR - antenaH, 2, 0, Math.PI*2); ctx.fillStyle = "#ffaa66"; ctx.fill(); ctx.stroke();
             for(let i=0;i<12;i++) {
                 const angle = (i/12)*Math.PI*2;
                 const x = Math.cos(angle)*(PLAYER_RADIUS-2), y = Math.sin(angle)*(PLAYER_RADIUS-2);
@@ -1092,19 +1049,13 @@
             ctx.translate(e.x, e.y);
             ctx.rotate(e.spinAngle);
             let flashActive = false;
-            for(let f of enemyFlash) {
-                if(f.index === idx) { flashActive = true; break; }
-            }
+            for(let f of enemyFlash) if(f.index === idx) { flashActive = true; break; }
             if(flashActive) {
-                const intensity = 0.9;
-                const rad = e.r + 8;
-                const grad = ctx.createRadialGradient(0,0,e.r-2,0,0,rad);
-                grad.addColorStop(0, `rgba(255,80,80,${intensity})`);
-                grad.addColorStop(0.5, `rgba(255,40,40,${intensity*0.6})`);
+                const grad = ctx.createRadialGradient(0,0,e.r-2,0,0,e.r+8);
+                grad.addColorStop(0, `rgba(255,80,80,0.9)`);
+                grad.addColorStop(0.5, `rgba(255,40,40,0.6)`);
                 grad.addColorStop(1, `rgba(255,0,0,0)`);
-                ctx.fillStyle = grad;
-                ctx.beginPath(); ctx.arc(0,0,rad,0,Math.PI*2);
-                ctx.fill();
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0,e.r+8,0,Math.PI*2); ctx.fill();
             }
             const hue = currentEnemyHue;
             const lightColor = `hsl(${hue}, 70%, 60%)`;
@@ -1112,10 +1063,8 @@
             const midColor = `hsl(${hue}, 70%, 50%)`;
             ctx.shadowBlur = 6; ctx.shadowColor = `hsl(${hue}, 80%, 50%)`;
             const grad = ctx.createRadialGradient(-4,-4,4,0,0,e.r);
-            grad.addColorStop(0, lightColor);
-            grad.addColorStop(1, darkColor);
-            ctx.fillStyle = grad;
-            ctx.beginPath(); ctx.arc(0,0,e.r,0,Math.PI*2); ctx.fill();
+            grad.addColorStop(0, lightColor); grad.addColorStop(1, darkColor);
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0,e.r,0,Math.PI*2); ctx.fill();
             ctx.beginPath(); ctx.arc(0,0,e.r-4,0,Math.PI*2); ctx.fillStyle = midColor; ctx.fill();
             const cockpitR = e.r * 0.52;
             ctx.beginPath(); ctx.arc(0,0, cockpitR+1, 0, Math.PI*2); ctx.strokeStyle = "#888888"; ctx.lineWidth = 1.5; ctx.stroke();
@@ -1142,15 +1091,22 @@
                 ctx.fillStyle = "#ff8888"; ctx.fill();
             }
         }
-        
         function drawParticles() { for(let p of particles) { ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); } }
         function drawShrapnel() { for(let sh of shrapnel) { ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-2,0,Math.PI*2); ctx.fillStyle="#cc8844"; ctx.fill(); ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-4,0,Math.PI*2); ctx.fillStyle="#ffaa66"; ctx.fill(); } }
         function drawShells() {
             for(let s of shells) {
-                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2); ctx.fillStyle="#88ff44"; ctx.fill();
-                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-2,0,Math.PI*2); ctx.fillStyle="#44cc22"; ctx.fill();
-                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-3,0,Math.PI*2); ctx.fillStyle="#aaff88"; ctx.fill();
-                ctx.beginPath(); ctx.arc(s.x-s.vx*1.5,s.y-s.vy*1.5,SHELL_RADIUS-3,0,Math.PI*2); ctx.fillStyle="#aaff8844"; ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2);
+                ctx.fillStyle = ability_fastBullet ? "#ff4444" : "#88ff44";
+                ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-2,0,Math.PI*2);
+                ctx.fillStyle = ability_fastBullet ? "#cc2222" : "#44cc22";
+                ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-3,0,Math.PI*2);
+                ctx.fillStyle = ability_fastBullet ? "#ff8888" : "#aaff88";
+                ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x-s.vx*1.5,s.y-s.vy*1.5,SHELL_RADIUS-3,0,Math.PI*2);
+                ctx.fillStyle = ability_fastBullet ? "#ff888844" : "#aaff8844";
+                ctx.fill();
             }
         }
         
@@ -1186,9 +1142,7 @@
                         enemyShootTimer--;
                     }
                 }
-                if (enemies.length === 0 && !winFlag && gameActive) {
-                    nextWave();
-                }
+                if (enemies.length === 0 && !winFlag && gameActive) nextWave();
             }
             draw();
             requestAnimationFrame(gameLoop);
@@ -1232,62 +1186,38 @@
             resetGame();
         }
         
-        function setEnemyCount(count) {
-            ENEMY_COUNT = count;
-            resetGame();
-        }
-        
+        function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         function updateDifficultyDot() {
-            if (currentDifficulty === 'easy') {
-                difficultyDot.style.backgroundColor = '#88ff44';
-                difficultyDot.style.boxShadow = '0 0 4px #88ff44';
-            } else if (currentDifficulty === 'medium') {
-                difficultyDot.style.backgroundColor = '#ffcc44';
-                difficultyDot.style.boxShadow = '0 0 4px #ffcc44';
-            } else if (currentDifficulty === 'hard') {
-                difficultyDot.style.backgroundColor = '#ff4444';
-                difficultyDot.style.boxShadow = '0 0 4px #ff4444';
-            }
-        }
-        
-        // Экспорт монет (опционально)
-        function exportCoins() {
-            const data = {
-                coins: coins,
-                totalKills: totalKills,
-                record: record
-            };
-            const json = JSON.stringify(data);
-            const blob = new Blob([json], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'ufo_save.json';
-            a.click();
-            URL.revokeObjectURL(url);
+            if (currentDifficulty === 'easy') difficultyDot.style.backgroundColor = '#88ff44';
+            else if (currentDifficulty === 'medium') difficultyDot.style.backgroundColor = '#ffcc44';
+            else difficultyDot.style.backgroundColor = '#ff4444';
+            difficultyDot.style.boxShadow = '0 0 4px currentColor';
         }
         
         function init() {
             loadStats();
             loadRecord();
             resizeCanvas();
+            updateAbilities();
+            // События
             canvas.addEventListener('mousemove', updateAimFromPointer);
             canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateAimFromPointer(e); });
             canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); });
             canvas.addEventListener('mousedown', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-            
             resetBtn.addEventListener('click', () => { resetGame(); });
             
             settingsIcon.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.toggle('show'); });
-            document.addEventListener('click', (e) => { if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show'); });
+            shopIcon.addEventListener('click', (e) => { e.stopPropagation(); shopMenu.classList.toggle('show'); });
+            document.addEventListener('click', (e) => {
+                if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
+                if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
+            });
             
             document.querySelectorAll('.settings-menu button[data-enemies]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const cnt = parseInt(btn.getAttribute('data-enemies'),10);
-                    if(!isNaN(cnt) && cnt !== ENEMY_COUNT) {
-                        setEnemyCount(cnt);
-                    }
+                    if(!isNaN(cnt) && cnt !== ENEMY_COUNT) setEnemyCount(cnt);
                     settingsMenu.classList.remove('show');
                 });
             });
@@ -1299,13 +1229,7 @@
                 });
             });
             
-            // Экспорт (по желанию можно включить, сейчас кнопка скрыта)
-            if(exportBtn) {
-                exportBtn.style.display = 'none'; // скрываем, если не нужно
-                exportBtn.addEventListener('click', exportCoins);
-            }
-            
-            window.addEventListener('resize', () => resizeCanvas());
+            window.addEventListener('resize', () => { resizeCanvas(); });
             gameLoop();
         }
         
