@@ -493,9 +493,10 @@
             ability_fastBullet = (currentSkin === 'fast');
             ability_pierce = (currentSkin === 'pierce');
             ability_ricochet = (currentSkin === 'ricochet');
+            // При активации щита всегда даём полный щит и сбрасываем перезарядку
             if (ability_shield) {
-                if (shieldCooldown <= 0) shieldActive = true;
-                else shieldActive = false;
+                shieldActive = true;
+                shieldCooldown = 0;
             } else {
                 shieldActive = false;
                 shieldCooldown = 0;
@@ -637,8 +638,9 @@
         function handlePlayerHit() {
             if (!gameActive) return;
             if (ability_shield && shieldActive) {
+                // Щит поглощает удар, начинается перезарядка
                 shieldActive = false;
-                shieldCooldown = 60 * 60;
+                shieldCooldown = 60 * 60; // длительная перезарядка (60 сек при 60 FPS)
                 return;
             }
             scheduleGameOver();
@@ -772,8 +774,14 @@
             pendingGameOver = false;
             playerDestroyed = false;
             wave = 1; penalty = 1;
-            if (ability_shield && shieldCooldown <= 0) shieldActive = true;
-            else shieldActive = false;
+            // Восстанавливаем щит полностью при рестарте, если он должен быть
+            if (ability_shield) {
+                shieldActive = true;
+                shieldCooldown = 0;
+            } else {
+                shieldActive = false;
+                shieldCooldown = 0;
+            }
             randomEnemyColor();
             enemies = createWave();
             shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
@@ -1088,7 +1096,7 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                // Активный щит – заливка и кант
+                // Активный щит
                 if (shieldActive) {
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.fillStyle = "rgba(100,200,255,0.2)";
@@ -1096,11 +1104,15 @@
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
                 } else if (shieldCooldown > 0) {
-                    // Мигание при восстановлении (без канта)
+                    // Мигание при восстановлении (с кантом)
                     if (Math.floor(Date.now() / 100) % 2 === 0) {
                         ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
                         ctx.fillStyle = "rgba(255,255,255,0.15)";
                         ctx.fill();
+                        ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
+                        ctx.strokeStyle = "rgba(136,204,255,0.6)";
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
                     }
                 }
                 // Радужные огоньки
@@ -1113,7 +1125,6 @@
                     ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
                 }
             } else if (currentSkin === 'fast') {
-                // ... (остальные скины без изменений)
                 ctx.beginPath();
                 for(let i = 0; i < 7; i++) {
                     const angle1 = (i / 7) * Math.PI * 2 - Math.PI/2;
@@ -1343,7 +1354,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
-        // ---------- ВРАГ (без оранжевого треугольника) ----------
+        // ---------- ВРАГ ----------
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1488,6 +1499,11 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
+            // При ресайзе тоже восстанавливаем щит
+            if (ability_shield) {
+                shieldActive = true;
+                shieldCooldown = 0;
+            }
             showGameOver();
             updateWaveUI();
         }
