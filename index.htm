@@ -203,56 +203,93 @@
             return audioCtx;
         }
         
-        function playLaserSound() {
-            try {
-                const ctx = ensureAudio();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(800, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(ctx.currentTime);
-                osc.stop(ctx.currentTime + 0.15);
-            } catch(e) {}
-        }
-        
-        // Звук взрыва врага (хрустящий, сыпучий)
-        function playExplosionSound() {
+        function playLaserSound(skinType) {
             try {
                 const ctx = ensureAudio();
                 const now = ctx.currentTime;
-                const duration = 0.2;
-                const bufferSize = Math.floor(ctx.sampleRate * duration);
-                const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-                const data = noiseBuffer.getChannelData(0);
-                // Быстро затухающий шум с очень крутой огибающей
-                for (let i = 0; i < bufferSize; i++) {
-                    const t = i / ctx.sampleRate;
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.025);
+                let freqStart = 800;
+                let freqEnd = 200;
+                let duration = 0.15;
+                
+                if (skinType === 'shield') {
+                    freqStart *= Math.pow(2, 3/12);
+                    freqEnd *= Math.pow(2, 3/12);
+                } else if (skinType === 'fast') {
+                    // Опускаем на 2 полутона относительно предыдущего повышения на 7 -> итог +5 полутонов
+                    freqStart *= Math.pow(2, 5/12);
+                    freqEnd *= Math.pow(2, 5/12);
+                } else if (skinType === 'pierce') {
+                    freqStart *= Math.pow(2, -5/12);
+                    freqEnd *= Math.pow(2, -5/12);
+                } else if (skinType === 'ricochet') {
+                    // Яркий "пиу" с высокой частотой
+                    const osc1 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(2400, now);
+                    osc1.frequency.exponentialRampToValueAtTime(600, now + 0.08);
+                    gain1.gain.setValueAtTime(0.25, now);
+                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start(now);
+                    osc1.stop(now + 0.08);
+                    
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sawtooth';
+                    osc2.frequency.setValueAtTime(1800, now);
+                    osc2.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                    gain2.gain.setValueAtTime(0.25, now);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(now);
+                    osc2.stop(now + 0.1);
+                    return;
                 }
-                const noise = ctx.createBufferSource();
-                noise.buffer = noiseBuffer;
-                const noiseGain = ctx.createGain();
-                noiseGain.gain.setValueAtTime(0.45, now);
-                noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                const bandpass = ctx.createBiquadFilter();
-                bandpass.type = 'bandpass';
-                bandpass.frequency.setValueAtTime(3500, now);
-                bandpass.frequency.exponentialRampToValueAtTime(400, now + duration);
-                bandpass.Q.setValueAtTime(2.5, now);
-                noise.connect(bandpass);
-                bandpass.connect(noiseGain);
-                noiseGain.connect(ctx.destination);
-                noise.start(now);
-                noise.stop(now + duration);
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freqStart, now);
+                osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
             } catch(e) {}
         }
         
-        // Звук гибели игрока (более долгий, с затуханием)
+        // Звук взрыва врага (чуть ярче)
+        function playExplosionSound() {
+            try {
+                const ctx = ensureAudio();
+                const bufferSize = ctx.sampleRate * 0.3;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.05));
+                }
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.55, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(4000, ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.3);
+                source.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                source.start(ctx.currentTime);
+            } catch(e) {}
+        }
+        
+        // Звук гибели игрока (долгий)
         function playPlayerDeathSound() {
             try {
                 const ctx = ensureAudio();
@@ -261,7 +298,6 @@
                 const bufferSize = Math.floor(ctx.sampleRate * duration);
                 const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
                 const data = noiseBuffer.getChannelData(0);
-                // Плавное затухание для длинного хруста
                 for (let i = 0; i < bufferSize; i++) {
                     const t = i / ctx.sampleRate;
                     data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.12);
@@ -281,7 +317,6 @@
                 noiseGain.connect(ctx.destination);
                 noise.start(now);
                 
-                // Низкочастотный гул
                 const osc = ctx.createOscillator();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(90, now);
@@ -392,8 +427,8 @@
         // Карта цветов свечения
         const glowColorMap = {
             0:   [255, 255, 100], // Красный -> Желтое
-            30:  [255, 200, 100], // Оранжевый -> Светло-оранжевое
-            60:  [200, 100, 255], // Желтый -> Фиолетовое
+            30:  [255, 255, 100], // Оранжевый -> Желтое
+            60:  [255, 255, 100], // Желтый -> Желтое
             120: [100, 200, 255], // Зеленый -> Голубое
             200: [255, 150, 50],  // Голубой -> Оранжевое
             270: [180, 100, 255]  // Фиолетовый -> Фиолетовое
@@ -582,7 +617,7 @@
             pendingGameOver = true;
             playerDestroyed = true;
             createExplosion(PLAYER_X, PLAYER_Y, true);
-            playPlayerDeathSound(); // долгий хрустящий звук гибели
+            playPlayerDeathSound();
             if (gameOverDelayTimer) clearTimeout(gameOverDelayTimer);
             gameOverDelayTimer = setTimeout(() => {
                 if (gameActive) {
@@ -737,6 +772,7 @@
             pendingGameOver = false;
             playerDestroyed = false;
             wave = 1; penalty = 1;
+            score = 0; updateScoreUI();
             if (ability_shield) {
                 shieldActive = true;
                 shieldCooldown = 0;
@@ -749,7 +785,6 @@
             randomEnemyColor();
             enemies = createWave();
             shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
-            score = 0; updateScoreUI();
             gameActive = true; winFlag = false;
             generateStars();
             playerSpinAngle = 0; comets = []; cometSpawnTimer = 30; playerFlash = 0; enemyShootTimer = 0;
@@ -772,18 +807,25 @@
                 const recoilDist = 7;
                 recoilX = -Math.cos(angle) * recoilDist;
                 recoilY = -Math.sin(angle) * recoilDist;
+                playLaserSound('fast');
             } else if (ability_pierce) {
                 playerFlash = 10;
                 const recoilDist = 5;
                 recoilX = -Math.cos(angle) * recoilDist;
                 recoilY = -Math.sin(angle) * recoilDist;
+                playLaserSound('pierce');
             } else if (ability_ricochet) {
                 playerFlash = 10;
                 const recoilDist = 6;
                 recoilX = -Math.cos(angle) * recoilDist;
                 recoilY = -Math.sin(angle) * recoilDist;
+                playLaserSound('ricochet');
+            } else if (ability_shield) {
+                playerFlash = 5;
+                playLaserSound('shield');
             } else {
                 playerFlash = 5;
+                playLaserSound('default');
             }
 
             const shellObj = {
@@ -798,7 +840,6 @@
                 trail: (ability_fastBullet || ability_pierce || ability_ricochet) ? [{x: PLAYER_X, y: PLAYER_Y}] : null
             };
             shells.push(shellObj);
-            playLaserSound();
         }
         
         function onPointerDown(event) {
@@ -1432,7 +1473,6 @@
             grad.addColorStop(0, lightColor); grad.addColorStop(1, darkColor);
             ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0,e.r,0,Math.PI*2); ctx.fill();
             ctx.beginPath(); ctx.arc(0,0,e.r-4,0,Math.PI*2); ctx.fillStyle = midColor; ctx.fill();
-            // Светлая кабина
             const cockpitR = e.r * 0.52;
             ctx.beginPath(); ctx.arc(0,0, cockpitR+1, 0, Math.PI*2); ctx.strokeStyle = "#888888"; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.beginPath(); ctx.arc(0,0, cockpitR, 0, Math.PI*2); ctx.fillStyle = "#7ec8e3"; ctx.fill();
@@ -1573,6 +1613,7 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
+            score = 0; updateScoreUI();
             recoilX = 0; recoilY = 0;
             shakeIntensity = 0; shakeDuration = 0;
             if (ability_shield) {
