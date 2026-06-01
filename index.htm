@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kill the Alien — щит с кулдауном</title>
+    <title>Kill the Alien</title>
     <style>
         * {
             user-select: none;
@@ -365,7 +365,7 @@
         const coinAmountSpan = document.getElementById('coinAmount');
         const startScreen = document.getElementById('startScreen');
         
-        // ----- ТРЯСКА ЭКРАНА -----
+        // ----- ТРЯСКА ЭКРАНА (лёгкая) -----
         let shakeIntensity = 0;
         let shakeDuration = 0;
         function addShake(intensity, duration) {
@@ -387,11 +387,9 @@
         const PLAYER_SPIN_SPEED = 0.008;
         let playerFlash = 0;
         let playerDestroyed = false;
-        
-        // Логика щита (только для скина shield)
-        let shieldActive = false;      // активен ли щит в данный момент
-        let shieldCooldownTimer = 0;   // таймер восстановления (в кадрах)
-        let shieldBlink = false;       // для мигания при восстановлении
+        let shieldActive = false;
+        let shieldCooldown = 0;          // таймер восстановления щита (в кадрах)
+        let shieldRegenBlink = false;     // для мигания при восстановлении
         
         let enemyFlash = [];
         
@@ -496,11 +494,12 @@
             ability_fastBullet = (currentSkin === 'fast');
             ability_pierce = (currentSkin === 'pierce');
             ability_ricochet = (currentSkin === 'ricochet');
-            // При активации скина щит активируется, если не на кулдауне
-            if (ability_shield && shieldCooldownTimer <= 0) {
-                shieldActive = true;
-            } else if (!ability_shield) {
+            if (ability_shield) {
+                if (shieldCooldown <= 0) shieldActive = true;
+                else shieldActive = false;
+            } else {
                 shieldActive = false;
+                shieldCooldown = 0;
             }
             if (ability_fastBullet) SHELL_SPEED = SHELL_SPEED_BASE * 1.8;
             else if (ability_ricochet) SHELL_SPEED = SHELL_SPEED_BASE * 1.2;
@@ -636,33 +635,23 @@
             }, 400);
         }
         
-        // Обновление кулдауна щита и мигания
-        function updateShieldCooldown() {
-            if (!ability_shield) return;
-            if (shieldCooldownTimer > 0) {
-                shieldCooldownTimer--;
-                if (shieldCooldownTimer === 0) {
-                    shieldActive = true;
-                }
-                // Мигание: каждые 30 кадров (0.5 сек при 60 fps) меняем состояние
-                if (shieldCooldownTimer > 0 && Math.floor(shieldCooldownTimer / 15) % 2 === 0) {
-                    shieldBlink = true;
-                } else {
-                    shieldBlink = false;
-                }
-            } else {
-                shieldBlink = false;
-            }
-        }
-        
         function handlePlayerHit() {
             if (!gameActive) return;
             if (ability_shield && shieldActive) {
                 shieldActive = false;
-                shieldCooldownTimer = 60 * 60; // 60 секунд при 60 FPS = 3600 кадров
+                shieldCooldown = 60 * 60; // 60 секунд при 60 fps
                 return;
             }
             scheduleGameOver();
+        }
+        
+        function updateShieldCooldown() {
+            if (ability_shield && shieldCooldown > 0) {
+                shieldCooldown--;
+                if (shieldCooldown <= 0) {
+                    shieldActive = true;
+                }
+            }
         }
         
         function createIncomingWave() {
@@ -784,9 +773,8 @@
             pendingGameOver = false;
             playerDestroyed = false;
             wave = 1; penalty = 1;
-            shieldActive = ability_shield;
-            shieldCooldownTimer = 0;
-            shieldBlink = false;
+            if (ability_shield && shieldCooldown <= 0) shieldActive = true;
+            else shieldActive = false;
             randomEnemyColor();
             enemies = createWave();
             shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
@@ -1076,7 +1064,7 @@
             ctx.restore();
         }
         
-        // ---------- ПОЛНАЯ ОТРИСОВКА ИГРОКА ----------
+        // ---------- ИГРОК (полная версия) ----------
         function drawPlayer() {
             if (playerDestroyed) return;
             ctx.save();
@@ -1101,13 +1089,19 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                // Отрисовка щита (если активен) с миганием при восстановлении
-                if ((shieldActive && !shieldBlink) || (shieldCooldownTimer > 0 && shieldBlink)) {
+                if (shieldActive) {
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.fillStyle = "rgba(100,200,255,0.25)";
                     ctx.fill();
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
+                } else if (shieldCooldown > 0) {
+                    // Мигание при восстановлении (каждые 10 кадров)
+                    if (Math.floor(Date.now() / 100) % 2 === 0) {
+                        ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
+                        ctx.fillStyle = "rgba(255,255,255,0.15)";
+                        ctx.fill();
+                    }
                 }
                 for(let i=0;i<12;i++) {
                     const angle = (i/12)*Math.PI*2 + playerSpinAngle * 2;
@@ -1347,7 +1341,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
-        // ---------- ОТРИСОВКА ВРАГА ----------
+        // ---------- ВРАГ (без оранжевого треугольника) ----------
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1492,9 +1486,6 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
-            shieldActive = ability_shield;
-            shieldCooldownTimer = 0;
-            shieldBlink = false;
             showGameOver();
             updateWaveUI();
         }
@@ -1514,6 +1505,22 @@
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         
+        // Автозакрытие магазина при открытии настроек
+        settingsIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsMenu.classList.toggle('show');
+            if (shopMenu.classList.contains('show')) shopMenu.classList.remove('show');
+        });
+        shopIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            shopMenu.classList.toggle('show');
+            if (settingsMenu.classList.contains('show')) settingsMenu.classList.remove('show');
+        });
+        document.addEventListener('click', (e) => {
+            if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
+            if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
+        });
+        
         function startGame() {
             startScreen.style.display = 'none';
             loadStats();
@@ -1527,13 +1534,6 @@
             canvas.addEventListener('mousedown', onPointerDown);
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             resetBtn.addEventListener('click', () => { resetGame(); });
-            
-            settingsIcon.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.toggle('show'); });
-            shopIcon.addEventListener('click', (e) => { e.stopPropagation(); shopMenu.classList.toggle('show'); });
-            document.addEventListener('click', (e) => {
-                if(!settingsIcon.contains(e.target) && !settingsMenu.contains(e.target)) settingsMenu.classList.remove('show');
-                if(!shopIcon.contains(e.target) && !shopMenu.contains(e.target)) shopMenu.classList.remove('show');
-            });
             
             document.querySelectorAll('.settings-menu button[data-enemies]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
