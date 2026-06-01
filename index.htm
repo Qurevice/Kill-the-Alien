@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kill the Alien</title>
+    <title>Kill the Alien — щит с кулдауном</title>
     <style>
         * {
             user-select: none;
@@ -365,7 +365,7 @@
         const coinAmountSpan = document.getElementById('coinAmount');
         const startScreen = document.getElementById('startScreen');
         
-        // ----- ТРЯСКА ЭКРАНА (уменьшенная) -----
+        // ----- ТРЯСКА ЭКРАНА -----
         let shakeIntensity = 0;
         let shakeDuration = 0;
         function addShake(intensity, duration) {
@@ -387,7 +387,11 @@
         const PLAYER_SPIN_SPEED = 0.008;
         let playerFlash = 0;
         let playerDestroyed = false;
-        let shieldActive = false;
+        
+        // Логика щита (только для скина shield)
+        let shieldActive = false;      // активен ли щит в данный момент
+        let shieldCooldownTimer = 0;   // таймер восстановления (в кадрах)
+        let shieldBlink = false;       // для мигания при восстановлении
         
         let enemyFlash = [];
         
@@ -492,8 +496,12 @@
             ability_fastBullet = (currentSkin === 'fast');
             ability_pierce = (currentSkin === 'pierce');
             ability_ricochet = (currentSkin === 'ricochet');
-            if (ability_shield) shieldActive = true;
-            else shieldActive = false;
+            // При активации скина щит активируется, если не на кулдауне
+            if (ability_shield && shieldCooldownTimer <= 0) {
+                shieldActive = true;
+            } else if (!ability_shield) {
+                shieldActive = false;
+            }
             if (ability_fastBullet) SHELL_SPEED = SHELL_SPEED_BASE * 1.8;
             else if (ability_ricochet) SHELL_SPEED = SHELL_SPEED_BASE * 1.2;
             else SHELL_SPEED = SHELL_SPEED_BASE * 1.0;
@@ -567,7 +575,6 @@
                 killsSinceLastBonus -= 5;
             }
             saveStats();
-            // Уменьшенная тряска: интенсивность 5, длительность 5
             addShake(5, 5);
         }
         
@@ -629,10 +636,30 @@
             }, 400);
         }
         
+        // Обновление кулдауна щита и мигания
+        function updateShieldCooldown() {
+            if (!ability_shield) return;
+            if (shieldCooldownTimer > 0) {
+                shieldCooldownTimer--;
+                if (shieldCooldownTimer === 0) {
+                    shieldActive = true;
+                }
+                // Мигание: каждые 30 кадров (0.5 сек при 60 fps) меняем состояние
+                if (shieldCooldownTimer > 0 && Math.floor(shieldCooldownTimer / 15) % 2 === 0) {
+                    shieldBlink = true;
+                } else {
+                    shieldBlink = false;
+                }
+            } else {
+                shieldBlink = false;
+            }
+        }
+        
         function handlePlayerHit() {
             if (!gameActive) return;
             if (ability_shield && shieldActive) {
                 shieldActive = false;
+                shieldCooldownTimer = 60 * 60; // 60 секунд при 60 FPS = 3600 кадров
                 return;
             }
             scheduleGameOver();
@@ -687,7 +714,9 @@
         }
         
         function checkWin() {
-            if (enemies.length === 0 && !winFlag && gameActive) nextWave();
+            if (enemies.length === 0 && !winFlag && gameActive) {
+                nextWave();
+            }
         }
         
         function createExplosion(x, y, isPlayer = false) {
@@ -755,7 +784,9 @@
             pendingGameOver = false;
             playerDestroyed = false;
             wave = 1; penalty = 1;
-            if (ability_shield) shieldActive = true;
+            shieldActive = ability_shield;
+            shieldCooldownTimer = 0;
+            shieldBlink = false;
             randomEnemyColor();
             enemies = createWave();
             shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
@@ -1070,7 +1101,8 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                if (shieldActive) {
+                // Отрисовка щита (если активен) с миганием при восстановлении
+                if ((shieldActive && !shieldBlink) || (shieldCooldownTimer > 0 && shieldBlink)) {
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.fillStyle = "rgba(100,200,255,0.25)";
                     ctx.fill();
@@ -1315,7 +1347,7 @@
             ctx.lineTo(PLAYER_X+dirX, PLAYER_Y+dirY); ctx.strokeStyle = "#88ff88"; ctx.lineWidth = 2.5; ctx.stroke();
         }
         
-        // ---------- ПОЛНАЯ ОТРИСОВКА ВРАГА ----------
+        // ---------- ОТРИСОВКА ВРАГА ----------
         function drawEnemy(e, idx) {
             ctx.save();
             ctx.translate(e.x, e.y);
@@ -1417,6 +1449,7 @@
                 updateEnemyBullets();
                 updateEnemyFlash();
                 updateStars();
+                updateShieldCooldown();
                 if(currentDifficulty === 'hard' && enemies.length > 0) {
                     if(enemyShootTimer <= 0) {
                         const randomIdx = Math.floor(Math.random() * enemies.length);
@@ -1427,7 +1460,9 @@
                         enemyShootTimer--;
                     }
                 }
-                if (enemies.length === 0 && !winFlag && gameActive) nextWave();
+                if (enemies.length === 0 && !winFlag && gameActive) {
+                    nextWave();
+                }
             }
             draw();
             requestAnimationFrame(gameLoop);
@@ -1457,6 +1492,9 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
+            shieldActive = ability_shield;
+            shieldCooldownTimer = 0;
+            shieldBlink = false;
             showGameOver();
             updateWaveUI();
         }
