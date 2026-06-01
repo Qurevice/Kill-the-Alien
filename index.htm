@@ -390,6 +390,8 @@
         let shieldActive = false;
         let shieldCooldown = 0;
         
+        let recoilX = 0, recoilY = 0; // отдача для скина "ускоренный снаряд"
+        
         let enemyFlash = [];
         
         let shells = [];
@@ -493,7 +495,6 @@
             ability_fastBullet = (currentSkin === 'fast');
             ability_pierce = (currentSkin === 'pierce');
             ability_ricochet = (currentSkin === 'ricochet');
-            // При активации щита всегда даём полный щит и сбрасываем перезарядку
             if (ability_shield) {
                 shieldActive = true;
                 shieldCooldown = 0;
@@ -638,9 +639,8 @@
         function handlePlayerHit() {
             if (!gameActive) return;
             if (ability_shield && shieldActive) {
-                // Щит поглощает удар, начинается перезарядка
                 shieldActive = false;
-                shieldCooldown = 60 * 60; // длительная перезарядка (60 сек при 60 FPS)
+                shieldCooldown = 60 * 60;
                 return;
             }
             scheduleGameOver();
@@ -653,6 +653,11 @@
                     shieldActive = true;
                 }
             }
+        }
+        
+        function updateRecoil() {
+            recoilX *= 0.85;
+            recoilY *= 0.85;
         }
         
         function createIncomingWave() {
@@ -774,7 +779,6 @@
             pendingGameOver = false;
             playerDestroyed = false;
             wave = 1; penalty = 1;
-            // Восстанавливаем щит полностью при рестарте, если он должен быть
             if (ability_shield) {
                 shieldActive = true;
                 shieldCooldown = 0;
@@ -782,6 +786,7 @@
                 shieldActive = false;
                 shieldCooldown = 0;
             }
+            recoilX = 0; recoilY = 0;
             randomEnemyColor();
             enemies = createWave();
             shells = []; particles = []; shrapnel = []; enemyBullets = []; enemyFlash = [];
@@ -802,8 +807,26 @@
             let maxHits = 1;
             if (ability_pierce) maxHits = Infinity;
             if (ability_ricochet) maxHits = Infinity;
-            shells.push({ x: PLAYER_X, y: PLAYER_Y, vx: vx, vy: vy, radius: SHELL_RADIUS, hits: 0, maxHits: maxHits, hasHit: false });
-            playerFlash = 5;
+
+            // Эффекты для скина "ускоренный снаряд"
+            if (ability_fastBullet) {
+                playerFlash = 10;
+                const recoilDist = 7;
+                recoilX = -Math.cos(angle) * recoilDist;
+                recoilY = -Math.sin(angle) * recoilDist;
+            } else {
+                playerFlash = 5;
+            }
+
+            shells.push({
+                x: PLAYER_X, y: PLAYER_Y,
+                vx: vx, vy: vy,
+                radius: SHELL_RADIUS,
+                hits: 0, maxHits: maxHits,
+                hasHit: false,
+                isFast: ability_fastBullet,
+                trail: ability_fastBullet ? [{x: PLAYER_X, y: PLAYER_Y}] : null
+            });
         }
         
         function onPointerDown(event) {
@@ -885,6 +908,13 @@
             for(let i=shells.length-1; i>=0; i--) {
                 const s = shells[i];
                 s.x += s.vx; s.y += s.vy;
+                
+                // Обновление шлейфа для быстрых снарядов
+                if (s.isFast && s.trail) {
+                    s.trail.unshift({x: s.x, y: s.y});
+                    if (s.trail.length > 10) s.trail.pop();
+                }
+                
                 if(s.x+SHELL_RADIUS<0 || s.x-SHELL_RADIUS>canvasWidth || s.y+SHELL_RADIUS<0 || s.y-SHELL_RADIUS>canvasHeight) {
                     if(gameActive && !playerDestroyed) {
                         if (!s.hasHit) {
@@ -1071,15 +1101,15 @@
             ctx.restore();
         }
         
-        // ---------- ОТРИСОВКА ИГРОКА (с исправленным кантом щита) ----------
+        // ---------- ОТРИСОВКА ИГРОКА ----------
         function drawPlayer() {
             if (playerDestroyed) return;
             ctx.save();
-            ctx.translate(PLAYER_X, PLAYER_Y);
+            ctx.translate(PLAYER_X + recoilX, PLAYER_Y + recoilY);
             ctx.rotate(playerSpinAngle);
             if(playerFlash>0) {
                 const inten = playerFlash/5;
-                const rad = PLAYER_RADIUS + 8;
+                const rad = PLAYER_RADIUS + (ability_fastBullet ? 14 : 8);
                 const grad = ctx.createRadialGradient(0,0,PLAYER_RADIUS-2,0,0,rad);
                 grad.addColorStop(0, `rgba(255,220,100,${0.8*inten})`);
                 grad.addColorStop(0.5, `rgba(255,180,60,${0.4*inten})`);
@@ -1096,7 +1126,6 @@
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-4,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#44aaff";
                 ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS-8,0,Math.PI*2); ctx.fill();
-                // Активный щит
                 if (shieldActive) {
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.fillStyle = "rgba(100,200,255,0.2)";
@@ -1104,7 +1133,6 @@
                     ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+10,0,Math.PI*2);
                     ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2; ctx.stroke();
                 } else if (shieldCooldown > 0) {
-                    // Мигание при восстановлении (с кантом)
                     if (Math.floor(Date.now() / 100) % 2 === 0) {
                         ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS+12,0,Math.PI*2);
                         ctx.fillStyle = "rgba(255,255,255,0.15)";
@@ -1115,7 +1143,6 @@
                         ctx.stroke();
                     }
                 }
-                // Радужные огоньки
                 for(let i=0;i<12;i++) {
                     const angle = (i/12)*Math.PI*2 + playerSpinAngle * 2;
                     const x = Math.cos(angle)*(PLAYER_RADIUS+2);
@@ -1405,6 +1432,21 @@
         function drawShrapnel() { for(let sh of shrapnel) { ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-2,0,Math.PI*2); ctx.fillStyle="#cc8844"; ctx.fill(); ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-4,0,Math.PI*2); ctx.fillStyle="#ffaa66"; ctx.fill(); } }
         function drawShells() {
             for(let s of shells) {
+                // Желтый шлейф для быстрых снарядов (как у кометы)
+                if (s.isFast && s.trail && s.trail.length > 1) {
+                    for (let j = 0; j < s.trail.length; j++) {
+                        const t = s.trail[j];
+                        const alpha = 0.5 * (1 - j / s.trail.length);
+                        const radius = SHELL_RADIUS * (1 - j / s.trail.length) * 0.9;
+                        if (radius > 0.2) {
+                            ctx.beginPath();
+                            ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgba(255, 255, 100, ${alpha})`;
+                            ctx.fill();
+                        }
+                    }
+                }
+                
                 ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2);
                 ctx.fillStyle = ability_fastBullet ? "#ff4444" : (ability_ricochet ? "#ffaa44" : "#88ff44");
                 ctx.fill();
@@ -1440,14 +1482,15 @@
             drawEnemyBullets();
             drawParticles();
             drawShrapnel();
-            drawPlayer();
             drawShells();
+            drawPlayer();
             ctx.restore();
         }
         
         function gameLoop() {
             if(gameActive) {
                 playerSpinAngle += PLAYER_SPIN_SPEED;
+                updateRecoil();
                 moveEnemies();
                 updateShells();
                 updateShrapnel();
@@ -1499,7 +1542,7 @@
             enemyShootTimer = 0;
             wave = 1;
             penalty = 1;
-            // При ресайзе тоже восстанавливаем щит
+            recoilX = 0; recoilY = 0;
             if (ability_shield) {
                 shieldActive = true;
                 shieldCooldown = 0;
@@ -1523,7 +1566,6 @@
         
         function setEnemyCount(count) { ENEMY_COUNT = count; resetGame(); }
         
-        // Автозакрытие магазина при открытии настроек
         settingsIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             settingsMenu.classList.toggle('show');
