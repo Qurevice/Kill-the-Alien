@@ -220,28 +220,79 @@
             } catch(e) {}
         }
         
+        // Звук взрыва врага (хрустящий, сыпучий)
         function playExplosionSound() {
             try {
                 const ctx = ensureAudio();
-                const bufferSize = ctx.sampleRate * 0.3; // 0.3 sec
-                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-                const data = buffer.getChannelData(0);
+                const now = ctx.currentTime;
+                const duration = 0.2;
+                const bufferSize = Math.floor(ctx.sampleRate * duration);
+                const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                // Быстро затухающий шум с очень крутой огибающей
                 for (let i = 0; i < bufferSize; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.05));
+                    const t = i / ctx.sampleRate;
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.025);
                 }
-                const source = ctx.createBufferSource();
-                source.buffer = buffer;
-                const gain = ctx.createGain();
-                gain.gain.setValueAtTime(0.4, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                const filter = ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(3000, ctx.currentTime);
-                filter.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.3);
-                source.connect(filter);
-                filter.connect(gain);
-                gain.connect(ctx.destination);
-                source.start(ctx.currentTime);
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.45, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                const bandpass = ctx.createBiquadFilter();
+                bandpass.type = 'bandpass';
+                bandpass.frequency.setValueAtTime(3500, now);
+                bandpass.frequency.exponentialRampToValueAtTime(400, now + duration);
+                bandpass.Q.setValueAtTime(2.5, now);
+                noise.connect(bandpass);
+                bandpass.connect(noiseGain);
+                noiseGain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + duration);
+            } catch(e) {}
+        }
+        
+        // Звук гибели игрока (более долгий, с затуханием)
+        function playPlayerDeathSound() {
+            try {
+                const ctx = ensureAudio();
+                const now = ctx.currentTime;
+                const duration = 0.7;
+                const bufferSize = Math.floor(ctx.sampleRate * duration);
+                const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                // Плавное затухание для длинного хруста
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = i / ctx.sampleRate;
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.12);
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.55, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                const bandpass = ctx.createBiquadFilter();
+                bandpass.type = 'bandpass';
+                bandpass.frequency.setValueAtTime(2500, now);
+                bandpass.frequency.exponentialRampToValueAtTime(200, now + duration);
+                bandpass.Q.setValueAtTime(1.8, now);
+                noise.connect(bandpass);
+                bandpass.connect(noiseGain);
+                noiseGain.connect(ctx.destination);
+                noise.start(now);
+                
+                // Низкочастотный гул
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(90, now);
+                osc.frequency.exponentialRampToValueAtTime(25, now + duration);
+                const oscGain = ctx.createGain();
+                oscGain.gain.setValueAtTime(0.4, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(oscGain);
+                oscGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
             } catch(e) {}
         }
         
@@ -531,6 +582,7 @@
             pendingGameOver = true;
             playerDestroyed = true;
             createExplosion(PLAYER_X, PLAYER_Y, true);
+            playPlayerDeathSound(); // долгий хрустящий звук гибели
             if (gameOverDelayTimer) clearTimeout(gameOverDelayTimer);
             gameOverDelayTimer = setTimeout(() => {
                 if (gameActive) {
