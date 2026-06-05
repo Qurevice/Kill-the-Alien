@@ -18,8 +18,24 @@
         .coin-icon { width: 28px; height: 28px; background: radial-gradient(circle at 30% 30%, #ffcc44, #e6a800); border-radius: 50%; border: 2px solid #ff8800; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #ff8800; font-weight: bold; }
         .coin-icon span { font-size: 18px; line-height: 1; }
         .coin-amount { font-size: 22px; font-weight: bold; color: #ffcc44; font-family: monospace; text-shadow: 0 0 2px #000; }
-        .reset-btn { position: absolute; background: #aa88ff; border: none; font-size: 16px; font-weight: bold; padding: 4px 14px; border-radius: 40px; color: #1e1a2a; cursor: pointer; font-family: 'Segoe UI', 'Verdana', sans-serif; box-shadow: 0 3px 0 #6a4aaf; transition: 0.07s linear; z-index: 15; }
-        .reset-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #6a4aaf; }
+        .reset-btn { 
+            position: absolute; 
+            background: #ff8844; 
+            border: none; 
+            font-size: 18px; 
+            font-weight: bold; 
+            padding: 8px 20px; 
+            border-radius: 40px; 
+            color: #1e1a2a; 
+            cursor: pointer; 
+            font-family: 'Segoe UI', 'Verdana', sans-serif; 
+            box-shadow: 0 4px 0 #aa5522; 
+            transition: 0.07s linear; 
+            z-index: 100; 
+            letter-spacing: 1px;
+            text-shadow: 0 1px 0 rgba(255,255,200,0.5);
+        }
+        .reset-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #aa5522; }
         .settings-icon, .shop-icon { position: absolute; right: 16px; width: 36px; height: 36px; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); border-radius: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; z-index: 20; transition: 0.1s; }
         .settings-icon { top: 16px; } .shop-icon { top: 66px; background: #aa66cc; }
         .settings-icon div, .shop-icon div { width: 22px; height: 2px; background: #ddd; margin: 3px 0; border-radius: 2px; }
@@ -198,7 +214,26 @@
         }
     }
     
-    function recalcDimensions() { canvasWidth=canvas.width; canvasHeight=canvas.height; currentOrientation=canvasWidth>canvasHeight?'landscape':'portrait'; const bs=Math.min(canvasWidth,canvasHeight); PLAYER_RADIUS=bs*0.045; ENEMY_RADIUS=bs*0.04; FOLLOW_RADIUS=Math.max(canvasWidth,canvasHeight)*0.28; SHELL_RADIUS=bs*0.012; SHELL_SPEED_BASE=bs*0.014; updateAbilities(); ENEMY_BASE_SPEED=bs*0.0022; if (currentOrientation==='landscape') { PLAYER_X=canvasWidth*0.12; PLAYER_Y=canvasHeight*0.5; ENEMY_MIN_X=canvasWidth*0.6; ENEMY_MAX_X=canvasWidth-ENEMY_RADIUS*2-10; ENEMY_MIN_Y=ENEMY_RADIUS*2; ENEMY_MAX_Y=canvasHeight-ENEMY_RADIUS*2; resetBtn.style.bottom='16px'; resetBtn.style.left='16px'; resetBtn.style.right='auto'; resetBtn.style.top='auto'; } else { PLAYER_X=canvasWidth*0.5; PLAYER_Y=canvasHeight-canvasHeight*0.12; ENEMY_MIN_X=ENEMY_RADIUS*2; ENEMY_MAX_X=canvasWidth-ENEMY_RADIUS*2; ENEMY_MIN_Y=ENEMY_RADIUS*2; ENEMY_MAX_Y=canvasHeight*0.4; resetBtn.style.bottom='16px'; resetBtn.style.right='16px'; resetBtn.style.left='auto'; resetBtn.style.top='auto'; } turretAngle=currentOrientation==='landscape'?0.2:-Math.PI/2; }
+    function recalcDimensions() { 
+        canvasWidth=canvas.width; canvasHeight=canvas.height; 
+        currentOrientation=canvasWidth>canvasHeight?'landscape':'portrait'; 
+        const bs=Math.min(canvasWidth,canvasHeight); 
+        PLAYER_RADIUS=bs*0.045; ENEMY_RADIUS=bs*0.04; FOLLOW_RADIUS=Math.max(canvasWidth,canvasHeight)*0.28; 
+        SHELL_RADIUS=bs*0.012; SHELL_SPEED_BASE=bs*0.014; updateAbilities(); 
+        ENEMY_BASE_SPEED=bs*0.0022; 
+        if (currentOrientation==='landscape') { 
+            PLAYER_X=canvasWidth*0.12; PLAYER_Y=canvasHeight*0.5; 
+            ENEMY_MIN_X=canvasWidth*0.6; ENEMY_MAX_X=canvasWidth-ENEMY_RADIUS*2-10; 
+            ENEMY_MIN_Y=ENEMY_RADIUS*2; ENEMY_MAX_Y=canvasHeight-ENEMY_RADIUS*2; 
+            resetBtn.style.bottom='16px'; resetBtn.style.left='16px'; resetBtn.style.right='auto'; resetBtn.style.top='auto'; 
+        } else { 
+            PLAYER_X=canvasWidth*0.5; PLAYER_Y=canvasHeight-canvasHeight*0.12; 
+            ENEMY_MIN_X=ENEMY_RADIUS*2; ENEMY_MAX_X=canvasWidth-ENEMY_RADIUS*2; 
+            ENEMY_MIN_Y=ENEMY_RADIUS*2; ENEMY_MAX_Y=canvasHeight*0.4; 
+            resetBtn.style.bottom='16px'; resetBtn.style.right='16px'; resetBtn.style.left='auto'; resetBtn.style.top='auto'; 
+        } 
+        turretAngle=currentOrientation==='landscape'?0.2:-Math.PI/2; 
+    }
     function normalizeSpeed(vx,vy,ts) { const len=Math.hypot(vx,vy); if (len>0.01) return {vx:(vx/len)*ts,vy:(vy/len)*ts}; const a=Math.random()*Math.PI*2; return {vx:Math.cos(a)*ts,vy:Math.sin(a)*ts}; }
     function generateStars() { stars=[]; for (let i=0;i<350;i++) stars.push({x:Math.random()*canvasWidth,y:Math.random()*canvasHeight,radius:Math.random()*2+0.5,alpha:Math.random()*0.7+0.3}); }
     function updateStars() { for (let s of stars) { s.y+=STAR_SPEED; if (s.y>canvasHeight) { s.y=0; s.x=Math.random()*canvasWidth; s.alpha=Math.random()*0.7+0.3; } } }
@@ -368,6 +403,7 @@
     function drawBackground() { const grad=ctx.createLinearGradient(0,0,0,canvasHeight); grad.addColorStop(0,"#0a1018");grad.addColorStop(1,"#050a10"); ctx.fillStyle=grad;ctx.fillRect(0,0,canvasWidth,canvasHeight); drawStars();drawComets(); }
     function drawAimZone() { ctx.save(); const grad=ctx.createRadialGradient(PLAYER_X,PLAYER_Y,PLAYER_RADIUS-2,PLAYER_X,PLAYER_Y,FOLLOW_RADIUS); grad.addColorStop(0,"rgba(136,221,255,0.25)");grad.addColorStop(0.7,"rgba(136,221,255,0.1)");grad.addColorStop(1,"rgba(136,221,255,0)"); ctx.fillStyle=grad;ctx.beginPath();ctx.arc(PLAYER_X,PLAYER_Y,FOLLOW_RADIUS,0,Math.PI*2);ctx.fill();ctx.restore(); }
 
+    // ======================= Отрисовка =======================
     function drawComboEffects() { 
         for (let ce of comboEffects) { 
             const progress = ce.life / ce.maxLife; 
@@ -448,7 +484,7 @@
     function drawLightning() { for (let l of lightningEffects) { ctx.save(); ctx.beginPath(); ctx.moveTo(l.x1, l.y1); const segments = 5; for (let i=1; i<=segments; i++) { const t = i / segments; const midX = l.x1 + (l.x2 - l.x1) * t + (Math.random() - 0.5) * 20; const midY = l.y1 + (l.y2 - l.y1) * t + (Math.random() - 0.5) * 20; ctx.lineTo(midX, midY); } ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; ctx.stroke(); ctx.restore(); } for (let i=lightningEffects.length-1; i>=0; i--) { lightningEffects[i].life--; if (lightningEffects[i].life <= 0) lightningEffects.splice(i,1); } }
     function drawShockwaves() { for (let sw of shockwaves) { const progress = sw.radius / sw.maxRadius; const alpha = 1 - progress; ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,100,0,${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } for (let i=shockwaves.length-1; i>=0; i--) { shockwaves[i].radius += (shockwaves[i].maxRadius - shockwaves[i].radius) * 0.2; shockwaves[i].life--; if (shockwaves[i].life <= 0) shockwaves.splice(i,1); } }
 
-    // Полная отрисовка игрока с улучшенным миганием для скина "детонация"
+    // Полная отрисовка игрока
     function drawPlayer() {
         if (playerDestroyed) return;
         ctx.save(); ctx.translate(PLAYER_X+recoilX, PLAYER_Y+recoilY); ctx.rotate(playerSpinAngle);
@@ -466,9 +502,9 @@
         ctx.shadowBlur=10;ctx.shadowColor="#c0c0c0";
         if (currentSkin==='detonation') {
             const ready = detonationReady;
-            // Улучшенное мигание: более высокая частота и контрастность
-            const blinkState = (!ready) ? (Math.floor(Date.now() / 100) % 2 === 0 ? 1.0 : 0.2) : 1.0;
-            const pulse = ready ? 1.0 : 0.3 + 0.3 * Math.abs(Math.sin(Date.now() * 0.02));
+            // Более явное мигание: частота в 2 раза выше (150ms), амплитуда больше
+            const blink = (!ready && (Math.floor(Date.now() / 150) % 2 === 0)) ? 0.35 : 1.0;
+            const pulse = ready ? 1.0 : 0.2 + 0.5 * Math.abs(Math.sin(Date.now() * 0.025));
             const gradBody = ctx.createRadialGradient(-4,-4,2,0,0,PLAYER_RADIUS);
             gradBody.addColorStop(0, '#ff4444'); gradBody.addColorStop(1, '#880000');
             ctx.fillStyle = gradBody; ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
@@ -477,16 +513,16 @@
             for (let i=0;i<8;i++) {
                 const angle = (i/8)*Math.PI*2 + playerSpinAngle * 6.0;
                 const x = Math.cos(angle)*(PLAYER_RADIUS+4), y = Math.sin(angle)*(PLAYER_RADIUS+4);
-                ctx.fillStyle = `rgba(255,200,100,${pulse * blinkState})`;
+                ctx.fillStyle = `rgba(255,200,100,${pulse * blink})`;
                 ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = `rgba(255,255,200,${pulse*0.8 * blinkState})`;
+                ctx.fillStyle = `rgba(255,255,200,${pulse*0.8 * blink})`;
                 ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
             }
             for (let i=0;i<18;i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const r = PLAYER_RADIUS + 2 + Math.random() * 5;
                 const x = Math.cos(angle) * r, y = Math.sin(angle) * r;
-                const alpha = (0.5 + Math.random() * 0.8) * blinkState;
+                const alpha = (0.4 + Math.random() * 0.7) * blink;
                 ctx.fillStyle = `rgba(255, 80, 30, ${alpha})`;
                 ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI*2); ctx.fill();
             }
@@ -501,7 +537,7 @@
                 const mx = Math.cos(angle + 0.2) * midRad, my = Math.sin(angle + 0.2) * midRad;
                 ctx.lineTo(mx, my);
                 ctx.lineTo(x2, y2);
-                ctx.strokeStyle = `rgba(255, 200, 80, ${0.9 * blinkState})`;
+                ctx.strokeStyle = `rgba(255, 200, 80, ${0.9 * blink})`;
                 ctx.lineWidth = 1.8;
                 ctx.shadowBlur = 4;
                 ctx.shadowColor = '#ff6600';
