@@ -50,13 +50,13 @@
         button[data-difficulty="easy"] { color: #88ff88 !important; }
         button[data-difficulty="medium"] { color: #ffcc44 !important; }
         button[data-difficulty="hard"] { color: #ff6666 !important; }
-        .game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 20; pointer-events: none; }
+        .game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 30; pointer-events: none; }
         .final-score-box { background: rgba(0,0,0,0.85); border-radius: 40px; padding: 30px 50px; text-align: center; backdrop-filter: blur(8px); box-shadow: 0 0 40px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 15px; }
         .final-score-number { font-size: 80px; font-weight: bold; color: #ffd966; font-family: monospace; letter-spacing: 4px; text-shadow: 0 0 15px #ffaa33; }
         .final-record { font-size: 28px; color: #ffaa66; font-family: monospace; }
         .final-wave { font-size: 22px; color: #aaddff; font-family: monospace; }
         .game-over { opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
-        .game-over.show { opacity: 1; }
+        .game-over.show { opacity: 1; pointer-events: auto; cursor: pointer; }
         .start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(5px); font-size: 32px; color: #ffd966; font-family: monospace; text-align: center; flex-direction: column; gap: 20px; cursor: pointer; transition: opacity 0.3s; }
         .start-screen span { font-size: 20px; color: #aaa; }
     </style>
@@ -502,7 +502,6 @@
         ctx.shadowBlur=10;ctx.shadowColor="#c0c0c0";
         if (currentSkin==='detonation') {
             const ready = detonationReady;
-            // Более явное мигание: частота в 2 раза выше (150ms), амплитуда больше
             const blink = (!ready && (Math.floor(Date.now() / 150) % 2 === 0)) ? 0.35 : 1.0;
             const pulse = ready ? 1.0 : 0.2 + 0.5 * Math.abs(Math.sin(Date.now() * 0.025));
             const gradBody = ctx.createRadialGradient(-4,-4,2,0,0,PLAYER_RADIUS);
@@ -624,6 +623,15 @@
     function resizeCanvas() { canvas.width=window.innerWidth;canvas.height=window.innerHeight; recalcDimensions(); generateStars(); randomEnemyColor(); enemies=createWave(); shells=[];particles=[];shrapnel=[];enemyBullets=[];enemyFlash=[];lightningEffects=[];comboEffects=[];shockwaves=[]; if (gameOverDelayTimer) clearTimeout(gameOverDelayTimer); pendingGameOver=false;playerDestroyed=false;gameActive=true;winFlag=false;playerFlash=0;comets=[];cometSpawnTimer=30;playerSpinAngle=0;enemyShootTimer=0;wave=1;penalty=1;score=0;updateScoreUI(); recoilX=0;recoilY=0;shakeIntensity=0;shakeDuration=0; comboStreak=0; comboTimer=0; if (ability_shield) { shieldActive=true;shieldCooldown=0; } if (ability_detonation) { detonationReady=true;detonationCooldown=0; } showGameOver();updateWaveUI(); }
     function setDifficulty(l) { currentDifficulty=l; switch(l){case'easy':ENEMY_SPEED_MULTIPLIER=1.0;break;case'medium':ENEMY_SPEED_MULTIPLIER=1.7;break;case'hard':ENEMY_SPEED_MULTIPLIER=2.0;break;} if (currentDifficulty==='easy')difficultyDot.style.backgroundColor='#88ff44';else if (currentDifficulty==='medium')difficultyDot.style.backgroundColor='#ffcc44';else difficultyDot.style.backgroundColor='#ff4444'; resetGame(); }
     function setEnemyCount(c) { ENEMY_COUNT=c; resetGame(); }
+    
+    // Перезапуск по клику на экран Game Over
+    function restartFromOverlay() {
+        if (!gameActive && winFlag) {
+            resetGame();
+        }
+    }
+    gameOverlay.addEventListener('click', restartFromOverlay);
+    
     settingsIcon.addEventListener('click',(e)=>{e.stopPropagation();settingsMenu.classList.toggle('show');if (shopMenu.classList.contains('show'))shopMenu.classList.remove('show');});
     shopIcon.addEventListener('click',(e)=>{e.stopPropagation();shopMenu.classList.toggle('show');if (settingsMenu.classList.contains('show'))settingsMenu.classList.remove('show');});
     document.addEventListener('click',(e)=>{if (!settingsIcon.contains(e.target)&&!settingsMenu.contains(e.target))settingsMenu.classList.remove('show');if (!shopIcon.contains(e.target)&&!shopMenu.contains(e.target))shopMenu.classList.remove('show');});
@@ -632,4 +640,4 @@
 })();
 </script>
 </body>
-</html>
+</html>ы
