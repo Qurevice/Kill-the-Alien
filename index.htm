@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kill the Alien — Homing & Detonation</title>
+    <title>Kill the Alien — Homing Evolution</title>
     <style>
         * { user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
         body { margin: 0; min-height: 100vh; background: #0a0f1a; display: flex; justify-content: center; align-items: center; font-family: 'Courier New', monospace; overflow: hidden; position: fixed; width: 100%; height: 100%; }
@@ -111,7 +111,7 @@
             fn();
         }
     }
-    function playLaserSound(skin) { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const now = ctx.currentTime; let fs = 800, fe = 200, d = 0.12; if (skin === 'shield') { fs *= Math.pow(2, 3/12); fe *= Math.pow(2, 3/12); } else if (skin === 'fast') { fs *= Math.pow(2, 5/12); fe *= Math.pow(2, 5/12); } else if (skin === 'pierce') { fs *= Math.pow(2, -5/12); fe *= Math.pow(2, -5/12); } else if (skin === 'ricochet') { const o1 = ctx.createOscillator(), g1 = ctx.createGain(); o1.type='sawtooth'; o1.frequency.setValueAtTime(2400,now); o1.frequency.exponentialRampToValueAtTime(600,now+0.08); g1.gain.setValueAtTime(0.2,now); g1.gain.exponentialRampToValueAtTime(0.001,now+0.08); o1.connect(g1); g1.connect(ctx.destination); o1.start(now); o1.stop(now+0.08); const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.type='sawtooth'; o2.frequency.setValueAtTime(1800,now); o2.frequency.exponentialRampToValueAtTime(300,now+0.1); g2.gain.setValueAtTime(0.2,now); g2.gain.exponentialRampToValueAtTime(0.001,now+0.1); o2.connect(g2); g2.connect(ctx.destination); o2.start(now); o2.stop(now+0.1); return; } else if (skin === 'discharge') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(150, now + 0.3); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.3); return; } else if (skin === 'detonation') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; const freqStart = 1000 * Math.pow(2, -2/12); osc.frequency.setValueAtTime(freqStart, now); osc.frequency.exponentialRampToValueAtTime(150 * Math.pow(2, -2/12), now + 0.4); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.4); return; } else if (skin === 'homing') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(1400, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.15); gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.15); return; } const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d); gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+d); } catch(e) {} }); }
+    function playLaserSound(skin) { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const now = ctx.currentTime; let fs = 800, fe = 200, d = 0.12; if (skin === 'shield') { fs *= Math.pow(2, 3/12); fe *= Math.pow(2, 3/12); } else if (skin === 'fast') { fs *= Math.pow(2, 5/12); fe *= Math.pow(2, 5/12); } else if (skin === 'pierce') { fs *= Math.pow(2, -5/12); fe *= Math.pow(2, -5/12); } else if (skin === 'ricochet') { const o1 = ctx.createOscillator(), g1 = ctx.createGain(); o1.type='sawtooth'; o1.frequency.setValueAtTime(2400,now); o1.frequency.exponentialRampToValueAtTime(600,now+0.08); g1.gain.setValueAtTime(0.2,now); g1.gain.exponentialRampToValueAtTime(0.001,now+0.08); o1.connect(g1); g1.connect(ctx.destination); o1.start(now); o1.stop(now+0.08); const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.type='sawtooth'; o2.frequency.setValueAtTime(1800,now); o2.frequency.exponentialRampToValueAtTime(300,now+0.1); g2.gain.setValueAtTime(0.2,now); g2.gain.exponentialRampToValueAtTime(0.001,now+0.1); o2.connect(g2); g2.connect(ctx.destination); o2.start(now); o2.stop(now+0.1); return; } else if (skin === 'discharge') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(150, now + 0.3); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.3); return; } else if (skin === 'detonation') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; const freqStart = 1000 * Math.pow(2, -2/12); osc.frequency.setValueAtTime(freqStart, now); osc.frequency.exponentialRampToValueAtTime(150 * Math.pow(2, -2/12), now + 0.4); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.4); return; } else if (skin === 'homing') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(1400, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.15); gain.gain.setValueAtTime(0.35, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.15); return; } const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d); gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+d); } catch(e) {} }); }
     function playExplosionSound() { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const bs = ctx.sampleRate*0.2; const b = ctx.createBuffer(1,bs,ctx.sampleRate); const d = b.getChannelData(0); for (let i=0;i<bs;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.04)); const s = ctx.createBufferSource(); s.buffer=b; const g = ctx.createGain(); g.gain.setValueAtTime(0.45,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.2); const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(4000,ctx.currentTime); f.frequency.exponentialRampToValueAtTime(500,ctx.currentTime+0.2); s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime); } catch(e) {} }); }
     function playDetonationSound() { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const bs = ctx.sampleRate*0.3; const b = ctx.createBuffer(1,bs,ctx.sampleRate); const d = b.getChannelData(0); for (let i=0;i<bs;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.025)); const s = ctx.createBufferSource(); s.buffer=b; const g = ctx.createGain(); g.gain.setValueAtTime(0.6,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3); const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(6000,ctx.currentTime); f.frequency.exponentialRampToValueAtTime(300,ctx.currentTime+0.3); s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime); } catch(e) {} }); }
     function playPlayerDeathSound() { try { const ctx = ensureAudio(); const now = ctx.currentTime; const dur = 0.5; const bs = Math.floor(ctx.sampleRate*dur); const nb = ctx.createBuffer(1,bs,ctx.sampleRate); const nd = nb.getChannelData(0); for (let i=0;i<bs;i++) { const t = i/ctx.sampleRate; nd[i] = (Math.random()*2-1)*Math.exp(-t/0.1); } const ns = ctx.createBufferSource(); ns.buffer=nb; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.5,now); ng.gain.exponentialRampToValueAtTime(0.001,now+dur); const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(2500,now); bp.frequency.exponentialRampToValueAtTime(200,now+dur); bp.Q.setValueAtTime(1.8,now); ns.connect(bp); bp.connect(ng); ng.connect(ctx.destination); ns.start(now); const osc = ctx.createOscillator(); osc.type='sine'; osc.frequency.setValueAtTime(90,now); osc.frequency.exponentialRampToValueAtTime(25,now+dur); const og = ctx.createGain(); og.gain.setValueAtTime(0.3,now); og.gain.exponentialRampToValueAtTime(0.001,now+dur); osc.connect(og); og.connect(ctx.destination); osc.start(now); osc.stop(now+dur); } catch(e) {} }
@@ -152,7 +152,7 @@
         { id: 'ricochet', name: 'Рикошет', price: 1200, desc: 'Отскакивающий снаряд. Повышенный шанс осколка до 100%. Ускоренный снаряд в 1,2 раза.' },
         { id: 'discharge', name: 'Разряд', price: 2000, desc: 'Уничтоженное вражеское НЛО бьет током ближайшего соседа, уничтожая его. Повышенный шанс осколка до 65%. Ускоренный снаряд в 1,4 раза. 50% шанс уничтожить снаряд противника разрядом тока.' },
         { id: 'detonation', name: 'Детонация', price: 5000, desc: 'При попадании во вражеское НЛО детонирует до 2 близстоящих НЛО. Отражает вражеские снаряды обратно в противников. Способность перезаряжается 30 секунд. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%.' },
-        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику, но не гарантирует попадание. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка 100%.' }
+        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику, но не гарантирует попадание. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка 100%. Эффектный неоновый дизайн.' }
     ];
     const skinDescs = {}; skinsList.forEach(s => { skinDescs[s.id] = s.desc; });
 
@@ -259,7 +259,7 @@
                 closestEnemy = e;
             }
         }
-        if (closestEnemy && closestDist < 350) { // только если враг в разумной близости
+        if (closestEnemy && closestDist < 350) {
             const dx = closestEnemy.x - shell.x;
             const dy = closestEnemy.y - shell.y;
             const len = Math.hypot(dx, dy);
@@ -267,11 +267,9 @@
                 const nx = dx / len;
                 const ny = dy / len;
                 const speed = Math.hypot(shell.vx, shell.vy);
-                // Очень слабое ускорение (0.04 от скорости)
-                const pull = 0.04;
+                const pull = 0.04; // очень слабое притяжение
                 shell.vx += nx * pull;
                 shell.vy += ny * pull;
-                // Нормализуем, чтобы скорость не менялась кардинально
                 const newSpeed = Math.hypot(shell.vx, shell.vy);
                 if (newSpeed > 0.01) {
                     shell.vx = (shell.vx / newSpeed) * speed;
@@ -408,7 +406,6 @@
                 s.trail.unshift({x:s.x,y:s.y}); 
                 if (s.trail.length>6) s.trail.pop(); 
             } 
-            // уничтожение вражеских снарядов для homing
             if (s.isHoming) {
                 for (let j=0;j<enemyBullets.length;j++) {
                     const eb = enemyBullets[j];
@@ -534,11 +531,11 @@
     function drawEnemyBullets() { for (let b of enemyBullets) { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fillStyle = b.reflected ? "#88ff44" : "#ff4444"; ctx.fill(); ctx.beginPath(); ctx.arc(b.x,b.y,b.radius-2,0,Math.PI*2); ctx.fillStyle = b.reflected ? "#aaff88" : "#ff8888"; ctx.fill(); } }
     function drawParticles() { for (let p of particles) { ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); } }
     function drawShrapnel() { for (let sh of shrapnel) { ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-2,0,Math.PI*2); ctx.fillStyle = "#cc8844"; ctx.fill(); ctx.beginPath(); ctx.arc(sh.x,sh.y,sh.radius-4,0,Math.PI*2); ctx.fillStyle = "#ffaa66"; ctx.fill(); } }
-    function drawShells() { for (let s of shells) { if ((s.isFast||s.isPierce||s.isRicochet||ability_discharge||ability_detonation||s.isHoming)&&s.trail&&s.trail.length>1) { for (let j=0;j<s.trail.length;j++) { const t=s.trail[j]; const alpha=0.5*(1-j/s.trail.length); const radius=SHELL_RADIUS*(1-j/s.trail.length)*0.9; if (radius>0.2) { ctx.beginPath(); ctx.arc(t.x,t.y,radius,0,Math.PI*2); if (s.isPierce) ctx.fillStyle=`rgba(255,140,0,${alpha})`; else if (s.isRicochet) ctx.fillStyle=`rgba(255,255,255,${alpha})`; else if (ability_discharge||ability_detonation||s.isHoming) ctx.fillStyle=`rgba(150,255,100,${alpha})`; else ctx.fillStyle=`rgba(255,255,100,${alpha})`; ctx.fill(); } } } let mc,mic,lic; if (s.isPierce) { mc="#ff2200"; mic="#cc1100"; lic="#ff6644"; } else if (s.isFast) { mc="#ff4444"; mic="#cc2222"; lic="#ff8888"; } else if (s.isRicochet||ability_ricochet) { mc="#ffaa44"; mic="#dd8800"; lic="#ffcc66"; } else if (ability_discharge) { mc="#ffaa00"; mic="#cc8800"; lic="#ffcc44"; } else if (ability_detonation) { mc="#ff6600"; mic="#cc4400"; lic="#ff8844"; } else if (s.isHoming) { mc="#44ff44"; mic="#22cc22"; lic="#88ff88"; } else { mc="#88ff44"; mic="#44cc22"; lic="#aaff88"; } ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2); ctx.fillStyle=mc; ctx.fill(); ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-2,0,Math.PI*2); ctx.fillStyle=mic; ctx.fill(); ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-3,0,Math.PI*2); ctx.fillStyle=lic; ctx.fill(); ctx.beginPath(); ctx.arc(s.x-s.vx*1.5, s.y-s.vy*1.5, SHELL_RADIUS-3, 0, Math.PI*2); ctx.fillStyle = s.isPierce ? "#ff664444" : (s.isFast ? "#ff888844" : (s.isRicochet ? "#ffcc6644" : (ability_discharge ? "#ffcc6644" : (ability_detonation ? "#ff884444" : (s.isHoming ? "#88ff8844" : "#aaff8844"))))); ctx.fill(); } }
+    function drawShells() { for (let s of shells) { if ((s.isFast||s.isPierce||s.isRicochet||ability_discharge||ability_detonation||s.isHoming)&&s.trail&&s.trail.length>1) { for (let j=0;j<s.trail.length;j++) { const t=s.trail[j]; const alpha=0.5*(1-j/s.trail.length); const radius=SHELL_RADIUS*(1-j/s.trail.length)*0.9; if (radius>0.2) { ctx.beginPath(); ctx.arc(t.x,t.y,radius,0,Math.PI*2); if (s.isPierce) ctx.fillStyle=`rgba(255,140,0,${alpha})`; else if (s.isRicochet) ctx.fillStyle=`rgba(255,255,255,${alpha})`; else if (ability_discharge||ability_detonation||s.isHoming) ctx.fillStyle=`rgba(100,255,100,${alpha})`; else ctx.fillStyle=`rgba(255,255,100,${alpha})`; ctx.fill(); } } } let mc,mic,lic; if (s.isPierce) { mc="#ff2200"; mic="#cc1100"; lic="#ff6644"; } else if (s.isFast) { mc="#ff4444"; mic="#cc2222"; lic="#ff8888"; } else if (s.isRicochet||ability_ricochet) { mc="#ffaa44"; mic="#dd8800"; lic="#ffcc66"; } else if (ability_discharge) { mc="#ffaa00"; mic="#cc8800"; lic="#ffcc44"; } else if (ability_detonation) { mc="#ff6600"; mic="#cc4400"; lic="#ff8844"; } else if (s.isHoming) { mc="#44ff44"; mic="#22cc22"; lic="#88ff88"; } else { mc="#88ff44"; mic="#44cc22"; lic="#aaff88"; } ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-1,0,Math.PI*2); ctx.fillStyle=mc; ctx.fill(); ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-2,0,Math.PI*2); ctx.fillStyle=mic; ctx.fill(); ctx.beginPath(); ctx.arc(s.x,s.y,SHELL_RADIUS-3,0,Math.PI*2); ctx.fillStyle=lic; ctx.fill(); ctx.beginPath(); ctx.arc(s.x-s.vx*1.5, s.y-s.vy*1.5, SHELL_RADIUS-3, 0, Math.PI*2); ctx.fillStyle = s.isPierce ? "#ff664444" : (s.isFast ? "#ff888844" : (s.isRicochet ? "#ffcc6644" : (ability_discharge ? "#ffcc6644" : (ability_detonation ? "#ff884444" : (s.isHoming ? "#88ff8844" : "#aaff8844"))))); ctx.fill(); } }
     function drawLightning() { for (let l of lightningEffects) { ctx.save(); ctx.beginPath(); ctx.moveTo(l.x1, l.y1); const segments = 5; for (let i=1; i<=segments; i++) { const t = i / segments; const midX = l.x1 + (l.x2 - l.x1) * t + (Math.random() - 0.5) * 20; const midY = l.y1 + (l.y2 - l.y1) * t + (Math.random() - 0.5) * 20; ctx.lineTo(midX, midY); } ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; ctx.stroke(); ctx.restore(); } for (let i=lightningEffects.length-1; i>=0; i--) { lightningEffects[i].life--; if (lightningEffects[i].life <= 0) lightningEffects.splice(i,1); } }
     function drawShockwaves() { for (let sw of shockwaves) { const progress = sw.radius / sw.maxRadius; const alpha = 1 - progress; ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,100,0,${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } for (let i=shockwaves.length-1; i>=0; i--) { shockwaves[i].radius += (shockwaves[i].maxRadius - shockwaves[i].radius) * 0.2; shockwaves[i].life--; if (shockwaves[i].life <= 0) shockwaves.splice(i,1); } }
 
-    // Отрисовка игрока
+    // Эффектная отрисовка игрока для скина "Самонаводка"
     function drawPlayer() {
         if (playerDestroyed) return;
         ctx.save(); ctx.translate(PLAYER_X+recoilX, PLAYER_Y+recoilY); ctx.rotate(playerSpinAngle);
@@ -556,36 +553,61 @@
         }
         ctx.shadowBlur=10;ctx.shadowColor="#c0c0c0";
         if (currentSkin==='homing') {
-            // Зелёный корабль
-            const gradBody = ctx.createRadialGradient(-4,-4,2,0,0,PLAYER_RADIUS);
-            gradBody.addColorStop(0, '#88ff88'); gradBody.addColorStop(1, '#228822');
-            ctx.fillStyle = gradBody; ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#aaffaa'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS*0.7,0,Math.PI*2); ctx.fillStyle = '#44cc44'; ctx.fill();
-            // 5 вращающихся полых колец (жёлтые)
+            // Основной корпус с градиентом
+            const gradBody = ctx.createRadialGradient(-5,-5,3,0,0,PLAYER_RADIUS);
+            gradBody.addColorStop(0, '#aaffaa');
+            gradBody.addColorStop(0.6, '#44cc44');
+            gradBody.addColorStop(1, '#228822');
+            ctx.fillStyle = gradBody;
+            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#aaffaa'; ctx.lineWidth = 2.5; ctx.stroke();
+            
+            // Пульсирующее ядро
+            const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.015);
+            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS*0.55,0,Math.PI*2);
+            ctx.fillStyle = `rgba(80,255,80,${0.4 + pulse*0.3})`;
+            ctx.fill();
+            
+            // 5 вращающихся неоновых колец (двойная обводка)
             for (let i=0;i<5;i++) {
                 const angle = (i/5)*Math.PI*2 + playerSpinAngle * 5.0;
-                const ringRadius = PLAYER_RADIUS + 4;
+                const ringRadius = PLAYER_RADIUS + 5;
                 const x = Math.cos(angle) * ringRadius;
                 const y = Math.sin(angle) * ringRadius;
-                ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+                // внешнее свечение
+                ctx.shadowBlur = 6; ctx.shadowColor = '#88ff88';
+                ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2);
+                ctx.strokeStyle = '#ffff88';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI*2);
                 ctx.strokeStyle = '#ffdd44';
-                ctx.lineWidth = 1.8;
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
-                ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2);
-                ctx.strokeStyle = '#ffaa00';
-                ctx.lineWidth = 1.2;
-                ctx.stroke();
+                ctx.shadowBlur = 0;
             }
-            // небольшие зелёные частицы
-            for (let i=0;i<16;i++) {
+            
+            // Мерцающие искры (много)
+            for (let i=0;i<28;i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const r = PLAYER_RADIUS + 1 + Math.random() * 4;
+                const r = PLAYER_RADIUS + 2 + Math.random() * 6;
                 const x = Math.cos(angle) * r, y = Math.sin(angle) * r;
-                ctx.fillStyle = `rgba(100,255,100,${0.5+Math.random()*0.5})`;
-                ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2); ctx.fill();
+                const alpha = 0.5 + Math.random() * 0.6;
+                const size = 1.2 + Math.random() * 1.8;
+                ctx.fillStyle = `rgba(100,255,100,${alpha * (0.8 + 0.4*Math.sin(Date.now()*0.01+angle))})`;
+                ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
+            }
+            
+            // Дополнительные светящиеся точки вокруг
+            for (let i=0;i<12;i++) {
+                const angle = (i/12)*Math.PI*2 + Date.now()*0.008;
+                const r = PLAYER_RADIUS + 8;
+                const x = Math.cos(angle) * r, y = Math.sin(angle) * r;
+                ctx.fillStyle = `rgba(255,200,100,0.6)`;
+                ctx.beginPath(); ctx.arc(x, y, 1.2, 0, Math.PI*2); ctx.fill();
             }
         } else if (currentSkin==='detonation') {
+            // ... (код детонации без изменений)
             const ready = detonationReady;
             const blink = (!ready && (Math.floor(Date.now() / 150) % 2 === 0)) ? 0.35 : 1.0;
             const pulse = ready ? 1.0 : 0.2 + 0.5 * Math.abs(Math.sin(Date.now() * 0.025));
