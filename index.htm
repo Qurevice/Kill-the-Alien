@@ -112,15 +112,15 @@
         }
     }
     
-    // Обновлённый звук выстрела с эффектом дрожания (тремоло) для скина homing
+    // Звук выстрела без клика — только дрожащий протяжённый звук
     function playLaserSound(skin) { 
         playThrottledSound(()=>{ 
             try { 
                 const ctx = ensureAudio(); 
                 const now = ctx.currentTime; 
                 if (skin === 'homing') {
-                    // Более протяжённый звук с дрожанием (LFO)
-                    const duration = 0.35;
+                    // Основной звук с дрожанием (без начального клика)
+                    const duration = 0.38;
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     const lfo = ctx.createOscillator();
@@ -128,17 +128,15 @@
                     
                     osc.type = 'sawtooth';
                     lfo.type = 'sine';
-                    lfo.frequency.value = 18; // частота дрожания (Гц)
-                    lfoGain.gain.value = 80;   // амплитуда модуляции частоты
+                    lfo.frequency.value = 22;
+                    lfoGain.gain.value = 95;
                     
-                    // Модуляция частоты основного осциллятора через LFO
                     lfo.connect(lfoGain);
                     lfoGain.connect(osc.frequency);
-                    osc.frequency.value = 1100;
+                    osc.frequency.value = 1200;
                     
-                    // Огибающая амплитуды: быстрое нарастание и плавный спад
                     gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.5, now + 0.03);
+                    gain.gain.linearRampToValueAtTime(0.55, now + 0.025);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                     
                     osc.connect(gain);
@@ -149,13 +147,13 @@
                     lfo.start(now);
                     lfo.stop(now + duration);
                     
-                    // Добавляем второй гармонический осциллятор для богатства звука
+                    // Второй гармонический слой
                     const osc2 = ctx.createOscillator();
                     const gain2 = ctx.createGain();
                     osc2.type = 'triangle';
-                    osc2.frequency.value = 550;
+                    osc2.frequency.value = 600;
                     gain2.gain.setValueAtTime(0, now);
-                    gain2.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                    gain2.gain.linearRampToValueAtTime(0.35, now + 0.04);
                     gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
                     osc2.connect(gain2);
                     gain2.connect(ctx.destination);
@@ -245,7 +243,7 @@
         { id: 'ricochet', name: 'Рикошет', price: 1200, desc: 'Отскакивающий снаряд. Повышенный шанс осколка до 100%. Ускоренный снаряд в 1,2 раза.' },
         { id: 'discharge', name: 'Разряд', price: 2000, desc: 'Уничтоженное вражеское НЛО бьет током ближайшего соседа, уничтожая его. Повышенный шанс осколка до 65%. Ускоренный снаряд в 1,4 раза. 50% шанс уничтожить снаряд противника разрядом тока.' },
         { id: 'detonation', name: 'Детонация', price: 5000, desc: 'При попадании во вражеское НЛО детонирует до 2 близстоящих НЛО. Отражает вражеские снаряды обратно в противников. Способность перезаряжается 30 секунд. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%.' },
-        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику, но не гарантирует попадание. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%. Также, уничтоженное НЛО даёт 2 осколка.' }
+        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд притягивается к противнику. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%. Также, уничтоженное НЛО даёт 2 осколка.' }
     ];
     const skinDescs = {}; skinsList.forEach(s => { skinDescs[s.id] = s.desc; });
 
@@ -300,20 +298,14 @@
         } 
         let shrapnelChance = 0.5;
         let shrapnelCount = 1;
-        if (ability_detonation) {
-            shrapnelChance = 1.0;
-            shrapnelCount = 1;
-        } else if (ability_homing) {
-            shrapnelChance = 1.0;
-            shrapnelCount = 2;   // для скина homing — 2 осколка
-        } else if (ability_discharge) {
-            shrapnelChance = 0.65;
-            shrapnelCount = 1;
-        }
+        if (ability_detonation || ability_homing) shrapnelChance = 1.0;
+        else if (ability_discharge) shrapnelChance = 0.65;
+        if (ability_homing) shrapnelCount = 2;
+        
         if (!isPlayer && Math.random() < shrapnelChance) { 
-            for (let s=0; s<shrapnelCount; s++) {
+            for (let s = 0; s < shrapnelCount; s++) {
                 const a=Math.random()*Math.PI*2, sp=3+Math.random()*4; 
-                shrapnel.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:45,radius:ENEMY_RADIUS*0.3});
+                shrapnel.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:45,radius:ENEMY_RADIUS*0.3}); 
             }
         }
         if (comboStreak >= 2) {
@@ -351,7 +343,6 @@
     function updateAimFromPointer(event) { if (!gameActive) return; const rect=canvas.getBoundingClientRect(); const scaleX=canvasWidth/rect.width, scaleY=canvasHeight/rect.height; let cx,cy; if (event.touches) { cx=event.touches[0].clientX; cy=event.touches[0].clientY; } else { cx=event.clientX; cy=event.clientY; } let mx=(cx-rect.left)*scaleX, my=(cy-rect.top)*scaleY; mx=Math.min(Math.max(mx,0),canvasWidth); my=Math.min(Math.max(my,0),canvasHeight); const dx=mx-PLAYER_X, dy=my-PLAYER_Y; turretAngle=Math.atan2(dy,dx); }
     function enemyShoot(enemy,idx) { const a=Math.random()*Math.PI*2; const vx=Math.cos(a)*SHELL_SPEED_BASE*0.8, vy=Math.sin(a)*SHELL_SPEED_BASE*0.8; enemyBullets.push({x:enemy.x,y:enemy.y,vx,vy,radius:SHELL_RADIUS*0.8,life:300,reflected:false}); enemyFlash.push({index:idx,timer:8}); }
     
-    // Мягкое самонаведение: добавляет небольшое ускорение в сторону цели, но не меняет направление резко
     function applyHoming(shell) {
         if (!shell.isHoming) return;
         let closestDist = Infinity;
@@ -363,7 +354,7 @@
                 closestEnemy = e;
             }
         }
-        if (closestEnemy && closestDist < 350) { // только если враг в разумной близости
+        if (closestEnemy && closestDist < 400) {
             const dx = closestEnemy.x - shell.x;
             const dy = closestEnemy.y - shell.y;
             const len = Math.hypot(dx, dy);
@@ -371,11 +362,9 @@
                 const nx = dx / len;
                 const ny = dy / len;
                 const speed = Math.hypot(shell.vx, shell.vy);
-                // Очень слабое ускорение (0.04 от скорости)
-                const pull = 0.04;
+                const pull = 0.07;
                 shell.vx += nx * pull;
                 shell.vy += ny * pull;
-                // Нормализуем, чтобы скорость не менялась кардинально
                 const newSpeed = Math.hypot(shell.vx, shell.vy);
                 if (newSpeed > 0.01) {
                     shell.vx = (shell.vx / newSpeed) * speed;
@@ -560,7 +549,6 @@
     function drawBackground() { const grad=ctx.createLinearGradient(0,0,0,canvasHeight); grad.addColorStop(0,"#0a1018");grad.addColorStop(1,"#050a10"); ctx.fillStyle=grad;ctx.fillRect(0,0,canvasWidth,canvasHeight); drawStars();drawComets(); }
     function drawAimZone() { ctx.save(); const grad=ctx.createRadialGradient(PLAYER_X,PLAYER_Y,PLAYER_RADIUS-2,PLAYER_X,PLAYER_Y,FOLLOW_RADIUS); grad.addColorStop(0,"rgba(136,221,255,0.25)");grad.addColorStop(0.7,"rgba(136,221,255,0.1)");grad.addColorStop(1,"rgba(136,221,255,0)"); ctx.fillStyle=grad;ctx.beginPath();ctx.arc(PLAYER_X,PLAYER_Y,FOLLOW_RADIUS,0,Math.PI*2);ctx.fill();ctx.restore(); }
 
-    // Отрисовка комбо
     function drawComboEffects() { 
         for (let ce of comboEffects) { 
             const progress = ce.life / ce.maxLife; 
@@ -641,7 +629,7 @@
     function drawLightning() { for (let l of lightningEffects) { ctx.save(); ctx.beginPath(); ctx.moveTo(l.x1, l.y1); const segments = 5; for (let i=1; i<=segments; i++) { const t = i / segments; const midX = l.x1 + (l.x2 - l.x1) * t + (Math.random() - 0.5) * 20; const midY = l.y1 + (l.y2 - l.y1) * t + (Math.random() - 0.5) * 20; ctx.lineTo(midX, midY); } ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; ctx.stroke(); ctx.restore(); } for (let i=lightningEffects.length-1; i>=0; i--) { lightningEffects[i].life--; if (lightningEffects[i].life <= 0) lightningEffects.splice(i,1); } }
     function drawShockwaves() { for (let sw of shockwaves) { const progress = sw.radius / sw.maxRadius; const alpha = 1 - progress; ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,100,0,${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } for (let i=shockwaves.length-1; i>=0; i--) { shockwaves[i].radius += (shockwaves[i].maxRadius - shockwaves[i].radius) * 0.2; shockwaves[i].life--; if (shockwaves[i].life <= 0) shockwaves.splice(i,1); } }
 
-    // Эффектная отрисовка игрока для скина "Самонаводка"
+    // Полная отрисовка игрока (все скины)
     function drawPlayer() {
         if (playerDestroyed) return;
         ctx.save(); ctx.translate(PLAYER_X+recoilX, PLAYER_Y+recoilY); ctx.rotate(playerSpinAngle);
@@ -659,41 +647,24 @@
         }
         ctx.shadowBlur=10;ctx.shadowColor="#c0c0c0";
         if (currentSkin==='homing') {
-            // Основной корпус с градиентом
             const gradBody = ctx.createRadialGradient(-5,-5,3,0,0,PLAYER_RADIUS);
-            gradBody.addColorStop(0, '#aaffaa');
-            gradBody.addColorStop(0.6, '#44cc44');
-            gradBody.addColorStop(1, '#228822');
-            ctx.fillStyle = gradBody;
-            ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
+            gradBody.addColorStop(0, '#aaffaa'); gradBody.addColorStop(0.6, '#44cc44'); gradBody.addColorStop(1, '#228822');
+            ctx.fillStyle = gradBody; ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#aaffaa'; ctx.lineWidth = 2.5; ctx.stroke();
-            
-            // Пульсирующее ядро
             const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.015);
             ctx.beginPath(); ctx.arc(0,0,PLAYER_RADIUS*0.55,0,Math.PI*2);
-            ctx.fillStyle = `rgba(80,255,80,${0.4 + pulse*0.3})`;
-            ctx.fill();
-            
-            // 5 вращающихся неоновых колец (двойная обводка)
+            ctx.fillStyle = `rgba(80,255,80,${0.4 + pulse*0.3})`; ctx.fill();
             for (let i=0;i<5;i++) {
                 const angle = (i/5)*Math.PI*2 + playerSpinAngle * 5.0;
                 const ringRadius = PLAYER_RADIUS + 5;
-                const x = Math.cos(angle) * ringRadius;
-                const y = Math.sin(angle) * ringRadius;
-                // внешнее свечение
+                const x = Math.cos(angle) * ringRadius, y = Math.sin(angle) * ringRadius;
                 ctx.shadowBlur = 6; ctx.shadowColor = '#88ff88';
                 ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2);
-                ctx.strokeStyle = '#ffff88';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                ctx.strokeStyle = '#ffff88'; ctx.lineWidth = 2; ctx.stroke();
                 ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI*2);
-                ctx.strokeStyle = '#ffdd44';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+                ctx.strokeStyle = '#ffdd44'; ctx.lineWidth = 1.5; ctx.stroke();
                 ctx.shadowBlur = 0;
             }
-            
-            // Мерцающие искры (много)
             for (let i=0;i<28;i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const r = PLAYER_RADIUS + 2 + Math.random() * 6;
@@ -703,8 +674,6 @@
                 ctx.fillStyle = `rgba(100,255,100,${alpha * (0.8 + 0.4*Math.sin(Date.now()*0.01+angle))})`;
                 ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
             }
-            
-            // Дополнительные светящиеся точки вокруг
             for (let i=0;i<12;i++) {
                 const angle = (i/12)*Math.PI*2 + Date.now()*0.008;
                 const r = PLAYER_RADIUS + 8;
@@ -713,7 +682,6 @@
                 ctx.beginPath(); ctx.arc(x, y, 1.2, 0, Math.PI*2); ctx.fill();
             }
         } else if (currentSkin==='detonation') {
-            // ... (код детонации без изменений)
             const ready = detonationReady;
             const blink = (!ready && (Math.floor(Date.now() / 150) % 2 === 0)) ? 0.35 : 1.0;
             const pulse = ready ? 1.0 : 0.2 + 0.5 * Math.abs(Math.sin(Date.now() * 0.025));
