@@ -112,15 +112,15 @@
         }
     }
     
-    // Звук выстрела без клика — только дрожащий протяжённый звук
+    // Обновлённый звук выстрела для скина homing — без отдельного клика, более низкий и приятный (основная дрожащая часть с пониженной частотой)
     function playLaserSound(skin) { 
         playThrottledSound(()=>{ 
             try { 
                 const ctx = ensureAudio(); 
                 const now = ctx.currentTime; 
                 if (skin === 'homing') {
-                    // Основной звук с дрожанием (без начального клика)
-                    const duration = 0.38;
+                    // Только основной звук с дрожанием, без клика. Частота понижена (было 1200, стало 950)
+                    const duration = 0.4;
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     const lfo = ctx.createOscillator();
@@ -129,14 +129,14 @@
                     osc.type = 'sawtooth';
                     lfo.type = 'sine';
                     lfo.frequency.value = 22;
-                    lfoGain.gain.value = 95;
+                    lfoGain.gain.value = 85;
                     
                     lfo.connect(lfoGain);
                     lfoGain.connect(osc.frequency);
-                    osc.frequency.value = 1200;
+                    osc.frequency.value = 950;  // понижено с 1200 для более низкого тона
                     
                     gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.55, now + 0.025);
+                    gain.gain.linearRampToValueAtTime(0.5, now + 0.025);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                     
                     osc.connect(gain);
@@ -147,13 +147,13 @@
                     lfo.start(now);
                     lfo.stop(now + duration);
                     
-                    // Второй гармонический слой
+                    // Второй гармонический слой с пониженной частотой
                     const osc2 = ctx.createOscillator();
                     const gain2 = ctx.createGain();
                     osc2.type = 'triangle';
-                    osc2.frequency.value = 600;
+                    osc2.frequency.value = 450;  // понижено с 600
                     gain2.gain.setValueAtTime(0, now);
-                    gain2.gain.linearRampToValueAtTime(0.35, now + 0.04);
+                    gain2.gain.linearRampToValueAtTime(0.3, now + 0.04);
                     gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
                     osc2.connect(gain2);
                     gain2.connect(ctx.destination);
@@ -243,7 +243,7 @@
         { id: 'ricochet', name: 'Рикошет', price: 1200, desc: 'Отскакивающий снаряд. Повышенный шанс осколка до 100%. Ускоренный снаряд в 1,2 раза.' },
         { id: 'discharge', name: 'Разряд', price: 2000, desc: 'Уничтоженное вражеское НЛО бьет током ближайшего соседа, уничтожая его. Повышенный шанс осколка до 65%. Ускоренный снаряд в 1,4 раза. 50% шанс уничтожить снаряд противника разрядом тока.' },
         { id: 'detonation', name: 'Детонация', price: 5000, desc: 'При попадании во вражеское НЛО детонирует до 2 близстоящих НЛО. Отражает вражеские снаряды обратно в противников. Способность перезаряжается 30 секунд. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%.' },
-        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд притягивается к противнику. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%. Также, уничтоженное НЛО даёт 2 осколка.' }
+        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%. Также, уничтоженное НЛО даёт 2 осколка.' }
     ];
     const skinDescs = {}; skinsList.forEach(s => { skinDescs[s.id] = s.desc; });
 
@@ -629,7 +629,8 @@
     function drawLightning() { for (let l of lightningEffects) { ctx.save(); ctx.beginPath(); ctx.moveTo(l.x1, l.y1); const segments = 5; for (let i=1; i<=segments; i++) { const t = i / segments; const midX = l.x1 + (l.x2 - l.x1) * t + (Math.random() - 0.5) * 20; const midY = l.y1 + (l.y2 - l.y1) * t + (Math.random() - 0.5) * 20; ctx.lineTo(midX, midY); } ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; ctx.stroke(); ctx.restore(); } for (let i=lightningEffects.length-1; i>=0; i--) { lightningEffects[i].life--; if (lightningEffects[i].life <= 0) lightningEffects.splice(i,1); } }
     function drawShockwaves() { for (let sw of shockwaves) { const progress = sw.radius / sw.maxRadius; const alpha = 1 - progress; ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,100,0,${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } for (let i=shockwaves.length-1; i>=0; i--) { shockwaves[i].radius += (shockwaves[i].maxRadius - shockwaves[i].radius) * 0.2; shockwaves[i].life--; if (shockwaves[i].life <= 0) shockwaves.splice(i,1); } }
 
-    // Полная отрисовка игрока (все скины)
+    // Полная отрисовка игрока (все скины). Здесь она приведена в сокращённом виде, но в финальном коде она полностью рабочая (как в предыдущей версии).
+    // В этом ответе я размещу полную версию drawPlayer, чтобы корабль отображался корректно.
     function drawPlayer() {
         if (playerDestroyed) return;
         ctx.save(); ctx.translate(PLAYER_X+recoilX, PLAYER_Y+recoilY); ctx.rotate(playerSpinAngle);
