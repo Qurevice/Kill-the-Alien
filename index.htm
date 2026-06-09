@@ -111,7 +111,100 @@
             fn();
         }
     }
-    function playLaserSound(skin) { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const now = ctx.currentTime; let fs = 800, fe = 200, d = 0.12; if (skin === 'shield') { fs *= Math.pow(2, 3/12); fe *= Math.pow(2, 3/12); } else if (skin === 'fast') { fs *= Math.pow(2, 5/12); fe *= Math.pow(2, 5/12); } else if (skin === 'pierce') { fs *= Math.pow(2, -5/12); fe *= Math.pow(2, -5/12); } else if (skin === 'ricochet') { const o1 = ctx.createOscillator(), g1 = ctx.createGain(); o1.type='sawtooth'; o1.frequency.setValueAtTime(2400,now); o1.frequency.exponentialRampToValueAtTime(600,now+0.08); g1.gain.setValueAtTime(0.2,now); g1.gain.exponentialRampToValueAtTime(0.001,now+0.08); o1.connect(g1); g1.connect(ctx.destination); o1.start(now); o1.stop(now+0.08); const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.type='sawtooth'; o2.frequency.setValueAtTime(1800,now); o2.frequency.exponentialRampToValueAtTime(300,now+0.1); g2.gain.setValueAtTime(0.2,now); g2.gain.exponentialRampToValueAtTime(0.001,now+0.1); o2.connect(g2); g2.connect(ctx.destination); o2.start(now); o2.stop(now+0.1); return; } else if (skin === 'discharge') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(150, now + 0.3); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.3); return; } else if (skin === 'detonation') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; const freqStart = 1000 * Math.pow(2, -2/12); osc.frequency.setValueAtTime(freqStart, now); osc.frequency.exponentialRampToValueAtTime(150 * Math.pow(2, -2/12), now + 0.4); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.4); return; } else if (skin === 'homing') { const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(1400, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.15); gain.gain.setValueAtTime(0.35, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.15); return; } const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d); gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+d); } catch(e) {} }); }
+    
+    // Обновлённый звук выстрела с эффектом дрожания (тремоло) для скина homing
+    function playLaserSound(skin) { 
+        playThrottledSound(()=>{ 
+            try { 
+                const ctx = ensureAudio(); 
+                const now = ctx.currentTime; 
+                if (skin === 'homing') {
+                    // Более протяжённый звук с дрожанием (LFO)
+                    const duration = 0.35;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const lfo = ctx.createOscillator();
+                    const lfoGain = ctx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    lfo.type = 'sine';
+                    lfo.frequency.value = 18; // частота дрожания (Гц)
+                    lfoGain.gain.value = 80;   // амплитуда модуляции частоты
+                    
+                    // Модуляция частоты основного осциллятора через LFO
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc.frequency);
+                    osc.frequency.value = 1100;
+                    
+                    // Огибающая амплитуды: быстрое нарастание и плавный спад
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.5, now + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + duration);
+                    lfo.start(now);
+                    lfo.stop(now + duration);
+                    
+                    // Добавляем второй гармонический осциллятор для богатства звука
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'triangle';
+                    osc2.frequency.value = 550;
+                    gain2.gain.setValueAtTime(0, now);
+                    gain2.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(now);
+                    osc2.stop(now + duration);
+                    return;
+                } else if (skin === 'shield') {
+                    let fs = 800, fe = 200, d = 0.12;
+                    fs *= Math.pow(2, 3/12); fe *= Math.pow(2, 3/12);
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d);
+                    gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now+d);
+                } else if (skin === 'fast') {
+                    let fs = 800, fe = 200, d = 0.12;
+                    fs *= Math.pow(2, 5/12); fe *= Math.pow(2, 5/12);
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d);
+                    gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now+d);
+                } else if (skin === 'pierce') {
+                    let fs = 800, fe = 200, d = 0.12;
+                    fs *= Math.pow(2, -5/12); fe *= Math.pow(2, -5/12);
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d);
+                    gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now+d);
+                } else if (skin === 'ricochet') {
+                    const o1 = ctx.createOscillator(), g1 = ctx.createGain(); o1.type='sawtooth'; o1.frequency.setValueAtTime(2400,now); o1.frequency.exponentialRampToValueAtTime(600,now+0.08); g1.gain.setValueAtTime(0.2,now); g1.gain.exponentialRampToValueAtTime(0.001,now+0.08); o1.connect(g1); g1.connect(ctx.destination); o1.start(now); o1.stop(now+0.08);
+                    const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.type='sawtooth'; o2.frequency.setValueAtTime(1800,now); o2.frequency.exponentialRampToValueAtTime(300,now+0.1); g2.gain.setValueAtTime(0.2,now); g2.gain.exponentialRampToValueAtTime(0.001,now+0.1); o2.connect(g2); g2.connect(ctx.destination); o2.start(now); o2.stop(now+0.1);
+                } else if (skin === 'discharge') {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(150, now + 0.3); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.3);
+                } else if (skin === 'detonation') {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain(); osc.type = 'sawtooth'; const freqStart = 1000 * Math.pow(2, -2/12); osc.frequency.setValueAtTime(freqStart, now); osc.frequency.exponentialRampToValueAtTime(150 * Math.pow(2, -2/12), now + 0.4); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.4);
+                } else {
+                    let fs = 800, fe = 200, d = 0.12;
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type='sawtooth'; osc.frequency.setValueAtTime(fs,now); osc.frequency.exponentialRampToValueAtTime(fe,now+d);
+                    gain.gain.setValueAtTime(0.25,now); gain.gain.exponentialRampToValueAtTime(0.001,now+d);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now+d);
+                }
+            } catch(e) {} 
+        }); 
+    }
+    
     function playExplosionSound() { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const bs = ctx.sampleRate*0.2; const b = ctx.createBuffer(1,bs,ctx.sampleRate); const d = b.getChannelData(0); for (let i=0;i<bs;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.04)); const s = ctx.createBufferSource(); s.buffer=b; const g = ctx.createGain(); g.gain.setValueAtTime(0.45,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.2); const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(4000,ctx.currentTime); f.frequency.exponentialRampToValueAtTime(500,ctx.currentTime+0.2); s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime); } catch(e) {} }); }
     function playDetonationSound() { playThrottledSound(()=>{ try { const ctx = ensureAudio(); const bs = ctx.sampleRate*0.3; const b = ctx.createBuffer(1,bs,ctx.sampleRate); const d = b.getChannelData(0); for (let i=0;i<bs;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.025)); const s = ctx.createBufferSource(); s.buffer=b; const g = ctx.createGain(); g.gain.setValueAtTime(0.6,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3); const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(6000,ctx.currentTime); f.frequency.exponentialRampToValueAtTime(300,ctx.currentTime+0.3); s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime); } catch(e) {} }); }
     function playPlayerDeathSound() { try { const ctx = ensureAudio(); const now = ctx.currentTime; const dur = 0.5; const bs = Math.floor(ctx.sampleRate*dur); const nb = ctx.createBuffer(1,bs,ctx.sampleRate); const nd = nb.getChannelData(0); for (let i=0;i<bs;i++) { const t = i/ctx.sampleRate; nd[i] = (Math.random()*2-1)*Math.exp(-t/0.1); } const ns = ctx.createBufferSource(); ns.buffer=nb; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.5,now); ng.gain.exponentialRampToValueAtTime(0.001,now+dur); const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(2500,now); bp.frequency.exponentialRampToValueAtTime(200,now+dur); bp.Q.setValueAtTime(1.8,now); ns.connect(bp); bp.connect(ng); ng.connect(ctx.destination); ns.start(now); const osc = ctx.createOscillator(); osc.type='sine'; osc.frequency.setValueAtTime(90,now); osc.frequency.exponentialRampToValueAtTime(25,now+dur); const og = ctx.createGain(); og.gain.setValueAtTime(0.3,now); og.gain.exponentialRampToValueAtTime(0.001,now+dur); osc.connect(og); og.connect(ctx.destination); osc.start(now); osc.stop(now+dur); } catch(e) {} }
@@ -152,7 +245,7 @@
         { id: 'ricochet', name: 'Рикошет', price: 1200, desc: 'Отскакивающий снаряд. Повышенный шанс осколка до 100%. Ускоренный снаряд в 1,2 раза.' },
         { id: 'discharge', name: 'Разряд', price: 2000, desc: 'Уничтоженное вражеское НЛО бьет током ближайшего соседа, уничтожая его. Повышенный шанс осколка до 65%. Ускоренный снаряд в 1,4 раза. 50% шанс уничтожить снаряд противника разрядом тока.' },
         { id: 'detonation', name: 'Детонация', price: 5000, desc: 'При попадании во вражеское НЛО детонирует до 2 близстоящих НЛО. Отражает вражеские снаряды обратно в противников. Способность перезаряжается 30 секунд. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%.' },
-        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику, но не гарантирует попадание. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка 100%. Эффектный неоновый дизайн.' }
+        { id: 'homing', name: 'Самонаводка', price: 10000, desc: 'Ваш снаряд слегка притягивается к противнику, но не гарантирует попадание. Вы также можете отразить вражеский снаряд своим. Ускоренный снаряд в 1,5 раза. Шанс осколка увеличен до 100%. Также, уничтоженное НЛО даёт 2 осколка.' }
     ];
     const skinDescs = {}; skinsList.forEach(s => { skinDescs[s.id] = s.desc; });
 
@@ -206,11 +299,22 @@
             particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:12+Math.random()*10,size:1+Math.random()*2,color:`hsl(50,90%,65%)`}); 
         } 
         let shrapnelChance = 0.5;
-        if (ability_detonation || ability_homing) shrapnelChance = 1.0;
-        else if (ability_discharge) shrapnelChance = 0.65;
+        let shrapnelCount = 1;
+        if (ability_detonation) {
+            shrapnelChance = 1.0;
+            shrapnelCount = 1;
+        } else if (ability_homing) {
+            shrapnelChance = 1.0;
+            shrapnelCount = 2;   // для скина homing — 2 осколка
+        } else if (ability_discharge) {
+            shrapnelChance = 0.65;
+            shrapnelCount = 1;
+        }
         if (!isPlayer && Math.random() < shrapnelChance) { 
-            const a=Math.random()*Math.PI*2, sp=3+Math.random()*4; 
-            shrapnel.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:45,radius:ENEMY_RADIUS*0.3}); 
+            for (let s=0; s<shrapnelCount; s++) {
+                const a=Math.random()*Math.PI*2, sp=3+Math.random()*4; 
+                shrapnel.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:45,radius:ENEMY_RADIUS*0.3});
+            }
         }
         if (comboStreak >= 2) {
             spawnComboEffect(x, y, comboStreak);
@@ -259,7 +363,7 @@
                 closestEnemy = e;
             }
         }
-        if (closestEnemy && closestDist < 350) {
+        if (closestEnemy && closestDist < 350) { // только если враг в разумной близости
             const dx = closestEnemy.x - shell.x;
             const dy = closestEnemy.y - shell.y;
             const len = Math.hypot(dx, dy);
@@ -267,9 +371,11 @@
                 const nx = dx / len;
                 const ny = dy / len;
                 const speed = Math.hypot(shell.vx, shell.vy);
-                const pull = 0.04; // очень слабое притяжение
+                // Очень слабое ускорение (0.04 от скорости)
+                const pull = 0.04;
                 shell.vx += nx * pull;
                 shell.vy += ny * pull;
+                // Нормализуем, чтобы скорость не менялась кардинально
                 const newSpeed = Math.hypot(shell.vx, shell.vy);
                 if (newSpeed > 0.01) {
                     shell.vx = (shell.vx / newSpeed) * speed;
